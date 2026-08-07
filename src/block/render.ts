@@ -2,7 +2,6 @@ import { MarkdownPostProcessorContext, Notice, setIcon } from "obsidian";
 import type QuickAddButtonPlugin from "../main";
 import { RuleDef } from "../settings/Settings";
 import { parseBlock, resolveButtons } from "./parse";
-import { resolveNote } from "../core/resolve";
 import { TaskFormModal } from "../ui/TaskFormModal";
 
 /**
@@ -40,7 +39,7 @@ export function renderBlock(
 				continue;
 			}
 			const btn = row.createEl("button", { text: b.rule.label, cls: "qab-btn" });
-			btn.onclick = () => openForm(plugin, b.rule, ctx.sourcePath);
+			btn.onclick = () => openForm(plugin, b.rule);
 		}
 	};
 
@@ -48,17 +47,8 @@ export function renderBlock(
 	draw();
 }
 
-export function openForm(
-	plugin: QuickAddButtonPlugin,
-	rule: RuleDef,
-	sourcePath: string
-): void {
-	const note = resolveNote(plugin.app, sourcePath);
-	if (!note.ok) {
-		new Notice(`⚠️ ${note.message}`);
-		return;
-	}
-	new TaskFormModal(plugin.app, rule, plugin.settings, note.value).open();
+export function openForm(plugin: QuickAddButtonPlugin, rule: RuleDef): void {
+	new TaskFormModal(plugin.app, rule, plugin.settings).open();
 }
 
 function renderError(

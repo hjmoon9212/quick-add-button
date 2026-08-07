@@ -1,8 +1,8 @@
 import { AbstractInputSuggest, App, Modal, Setting, TFile } from "obsidian";
-import { RuleDef, TaskTarget } from "./Settings";
+import { RuleDef } from "./Settings";
 import { validateRule } from "./validate";
 
-/** 볼트의 마크다운 파일 경로 자동완성. */
+/** 볼트의 마크다운 파일 경로를 입력하면서 검색한다. */
 class FileSuggest extends AbstractInputSuggest<string> {
 	constructor(
 		app: App,
@@ -17,21 +17,29 @@ class FileSuggest extends AbstractInputSuggest<string> {
 			.getMarkdownFiles()
 			.map((f) => f.path)
 			.filter((p) => p.toLowerCase().includes(q))
-			.slice(0, 20);
+			.slice(0, 50);
 	}
 	renderSuggestion(value: string, el: HTMLElement): void {
 		el.setText(value);
 	}
 	selectSuggestion(value: string): void {
 		this.input.value = value;
+		this.setValue(value);
 		this.onPick(value);
 		this.close();
 	}
 }
 
+interface HeadingOption {
+	heading: string;
+	level: number;
+}
+
 /** 규칙 하나(= 버튼 하나)를 편집한다. */
 export class RuleEditModal extends Modal {
 	private draft: RuleDef;
+	private headingSel!: HTMLSelectElement;
+	private headingDesc!: HTMLElement;
 
 	constructor(
 		app: App,
@@ -79,25 +87,44 @@ export class RuleEditModal extends Modal {
 					.onChange((v) => (this.draft.label = v))
 			);
 
-		contentEl.createEl("h4", { text: "삽입 대상" });
-		contentEl.createEl("div", {
-			cls: "qab-hint",
-			text:
-				"버튼을 누르면 이 목록이 폼의 대상 드롭다운에 이 순서로 뜹니다. " +
-				"파일 자리에 @current 를 적으면 버튼이 있는 노트, @folder/… 는 그 노트가 있는 폴더 기준입니다.",
-		});
+		new Setting(contentEl).setName("삽입 대상").setHeading();
 
-		const list = contentEl.createEl("div");
-		this.draft.targets.forEach((t, i) => this.renderTargetRow(list, t, i));
+		new Setting(contentEl)
+			.setName("파일")
+			.setDesc("입력하면 볼트의 노트를 검색합니다.")
+			.addText((t) => {
+				t.setPlaceholder("0. Note/0. Inbox/Temp Tasks.md")
+					.setValue(this.draft.file)
+					.onChange((v) => {
+						this.draft.file = v.trim();
+						this.draft.heading = "";
+						this.draft.level = 0;
+						this.refreshHeadings();
+					});
+				t.inputEl.addClass("qab-wide");
+				new FileSuggest(this.app, t.inputEl, (v) => {
+					this.draft.file = v;
+					this.draft.heading = "";
+					this.draft.level = 0;
+					this.refreshHeadings();
+				});
+			});
 
-		new Setting(contentEl).addButton((b) =>
-			b.setButtonText("＋ 대상 추가").onClick(() => {
-				this.draft.targets.push({ file: "", heading: "" });
-				this.render();
-			})
-		);
+		const headingSetting = new Setting(contentEl)
+			.setName("헤딩")
+			.setDesc("이 헤딩 아래에 할일이 들어갑니다.")
+			.addDropdown((dd) => {
+				this.headingSel = dd.selectEl;
+				dd.onChange((v) => {
+					const at = v.indexOf(":");
+					this.draft.level = Number(v.slice(0, at));
+					this.draft.heading = v.slice(at + 1);
+				});
+			});
+		this.headingDesc = headingSetting.descEl;
+		this.refreshHeadings();
 
-		contentEl.createEl("h4", { text: "폼 기본값" });
+		new Setting(contentEl).setName("폼 기본값").setHeading();
 		const d = this.draft.defaults;
 
 		new Setting(contentEl)
@@ -115,12 +142,11 @@ export class RuleEditModal extends Modal {
 				.onChange((v) => (d.due = v))
 		);
 		new Setting(contentEl)
-			.setName("기본 삽입 위치")
-			.setDesc("선택한 헤딩 섹션의 어디에 넣을지.")
+			.setName("헤딩 아래 어디에")
 			.addDropdown((dd) =>
 				dd
 					.addOption("end", "섹션 끝")
-					.addOption("top", "섹션 맨 위")
+					.addOption("top", "헤딩 바로 밑")
 					.setValue(d.position)
 					.onChange((v) => (d.position = v as "end" | "top"))
 			);
@@ -157,117 +183,68 @@ export class RuleEditModal extends Modal {
 			);
 	}
 
-	private renderTargetRow(root: HTMLElement, t: TaskTarget, i: number): void {
-		const s = new Setting(root).setClass("qab-target-row");
-		let sel: HTMLSelectElement;
+	/**
+	 * 파일이 바뀌면 헤딩 목록을 그 자리에서 다시 채운다.
+	 * 여기서 render() 를 다시 부르면 타이핑 도중 입력칸이 새로 그려져 포커스를
+	 * 잃으므로, option 만 갈아끼운다.
+	 */
+	private refreshHeadings(): void {
+		if (!this.headingSel) return;
+		this.headingSel.empty();
 
-		/**
-		 * 파일이 바뀌면 헤딩 목록을 그 자리에서 다시 채운다.
-		 * 여기서 this.render() 를 부르면 타이핑 도중 입력칸이 새로 그려져 포커스를
-		 * 잃으므로, 옵션만 갈아끼운다.
-		 */
-		const refreshHeadings = () => {
-			if (!sel) return;
-			sel.empty();
+		const file = this.app.vault.getAbstractFileByPath(this.draft.file);
+		if (!(file instanceof TFile)) {
+			this.setHeadingState("파일을 먼저 선택하세요.", true);
+			return;
+		}
 
-			if (t.file === "@current") {
-				// 어느 노트에서 눌렀는지에 따라 헤딩이 달라지므로 지금은 정할 수 없다.
-				t.headings = "h1-h3";
-				const o = sel.createEl("option", { text: "누를 때 그 노트의 헤딩에서 선택" });
-				o.value = "";
-				sel.disabled = true;
-				return;
-			}
+		const options = this.headingsOf(file);
+		if (!options.length) {
+			this.setHeadingState("이 노트에는 헤딩이 없습니다. 헤딩을 만든 뒤 다시 고르세요.", true);
+			return;
+		}
 
-			delete t.headings;
-			sel.disabled = false;
-
-			const start = sel.createEl("option", { text: "파일 시작" });
-			start.value = "^";
-			const end = sel.createEl("option", { text: "파일 끝" });
-			end.value = "$";
-
-			for (const h of this.headingsOf(t.file)) {
-				const o = sel.createEl("option", {
-					text: `${"·".repeat(h.level - 1)}${h.heading}`,
-				});
-				o.value = `${h.level}:${h.heading}`;
-			}
-
-			sel.value = t.heading
-				? `${t.level ?? 1}:${t.heading}`
-				: t.filePos === "start"
-				? "^"
-				: "$";
-			// 저장돼 있던 헤딩이 파일에서 사라진 경우
-			if (!sel.value) sel.value = "$";
-		};
-
-		s.addText((c) => {
-			c.setPlaceholder("파일 경로 또는 @current")
-				.setValue(t.file)
-				.onChange((v) => {
-					t.file = v.trim();
-					t.heading = "";
-					t.level = 0;
-					refreshHeadings();
-				});
-			new FileSuggest(this.app, c.inputEl, (v) => {
-				t.file = v;
-				t.heading = "";
-				t.level = 0;
-				refreshHeadings();
+		for (const h of options) {
+			const o = this.headingSel.createEl("option", {
+				text: `${"#".repeat(h.level)} ${h.heading}`,
 			});
-		});
+			o.value = `${h.level}:${h.heading}`;
+		}
+		this.headingSel.disabled = false;
+		this.headingDesc?.setText("이 헤딩 아래에 할일이 들어갑니다.");
 
-		s.addDropdown((dd) => {
-			sel = dd.selectEl;
-			dd.onChange((v) => {
-				if (v === "^" || v === "$") {
-					t.heading = "";
-					t.level = 0;
-					t.filePos = v === "^" ? "start" : "end";
-					return;
-				}
-				const at = v.indexOf(":");
-				t.level = Number(v.slice(0, at));
-				t.heading = v.slice(at + 1);
-				delete t.filePos;
-			});
-		});
-		refreshHeadings();
-
-		s.addText((c) =>
-			c
-				.setPlaceholder("표시 라벨")
-				.setValue(t.label ?? "")
-				.onChange((v) => (t.label = v))
-		);
-
-		s.addExtraButton((b) =>
-			b
-				.setIcon("trash")
-				.setTooltip("이 대상 삭제")
-				.onClick(() => {
-					this.draft.targets.splice(i, 1);
-					this.render();
-				})
-		);
+		const want = `${this.draft.level}:${this.draft.heading}`;
+		if (this.draft.heading && options.some((h) => `${h.level}:${h.heading}` === want)) {
+			this.headingSel.value = want;
+		} else {
+			// 첫 헤딩을 기본으로 잡아 둔다 — 안 고르고 저장하면 검증에 걸린다.
+			this.headingSel.selectedIndex = 0;
+			this.draft.level = options[0].level;
+			this.draft.heading = options[0].heading;
+		}
 	}
 
-	/** 대상 파일의 H1~H3. 코드펜스 안의 "#" 은 헤딩으로 보지 않는다. */
-	private headingsOf(path: string): { heading: string; level: number }[] {
-		const f = this.app.vault.getAbstractFileByPath(path);
-		if (!(f instanceof TFile)) return [];
-		const cache = this.app.metadataCache.getFileCache(f);
+	private setHeadingState(message: string, empty: boolean): void {
+		const o = this.headingSel.createEl("option", { text: "—" });
+		o.value = "";
+		this.headingSel.disabled = true;
+		this.headingDesc?.setText(message);
+		if (empty) {
+			this.draft.heading = "";
+			this.draft.level = 0;
+		}
+	}
+
+	/** 대상 파일의 헤딩. 삽입 로직과 같은 규칙(코드펜스 무시)으로 읽는다. */
+	private headingsOf(file: TFile): HeadingOption[] {
+		const cache = this.app.metadataCache.getFileCache(file);
 		if (!cache) return [];
 
 		const fences = (cache.sections ?? [])
 			.filter((s) => s.type === "code")
 			.map((s) => [s.position.start.line, s.position.end.line] as const);
 
-		return (cache.headings ?? [])
-			.filter((h) => h.level <= 3)
+		const fromCache = (cache.headings ?? [])
 			.filter(
 				(h) =>
 					!fences.some(
@@ -275,9 +252,12 @@ export class RuleEditModal extends Modal {
 					)
 			)
 			.map((h) => ({ heading: h.heading, level: h.level }));
+
+		return fromCache.length ? fromCache : [];
 	}
 
 	onClose(): void {
 		this.contentEl.empty();
 	}
 }
+

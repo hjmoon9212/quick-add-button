@@ -77,13 +77,9 @@ export class QuickAddButtonSettingTab extends PluginSettingTab {
 
 	private renderRule(root: HTMLElement, rule: RuleDef, i: number): void {
 		const total = this.plugin.settings.rules.length;
-		const where = rule.targets
-			.map((t) => (t.heading ? `${short(t.file)} › ${t.heading}` : short(t.file)))
-			.join(" · ");
-
 		const s = new Setting(root)
 			.setName(rule.label || rule.name)
-			.setDesc(`${rule.name} → ${where}`)
+			.setDesc(`${rule.name} → ${short(rule.file)} › ${rule.heading}`)
 			.setClass("qab-rule");
 
 		s.addToggle((t) =>
@@ -191,7 +187,6 @@ export class QuickAddButtonSettingTab extends PluginSettingTab {
 }
 
 function short(path: string): string {
-	if (path.startsWith("@")) return path;
 	const f = path.slice(path.lastIndexOf("/") + 1);
 	return f.endsWith(".md") ? f.slice(0, -3) : f;
 }

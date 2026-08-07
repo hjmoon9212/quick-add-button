@@ -95,13 +95,7 @@ export default class QuickAddButtonPlugin extends Plugin {
 			this.addCommand({
 				id,
 				name: rule.label,
-				checkCallback: (checking) => {
-					const file = this.app.workspace.getActiveFile();
-					if (!file) return false;
-					if (checking) return true;
-					this.openRule(rule, file.path);
-					return true;
-				},
+				callback: () => this.openRule(rule),
 			});
 		}
 
@@ -111,9 +105,9 @@ export default class QuickAddButtonPlugin extends Plugin {
 		this.commandIds = wanted;
 	}
 
-	private openRule(rule: RuleDef, sourcePath: string): void {
+	private openRule(rule: RuleDef): void {
 		try {
-			openForm(this, rule, sourcePath);
+			openForm(this, rule);
 		} catch (e) {
 			new Notice(`폼을 열지 못했습니다: ${e instanceof Error ? e.message : e}`);
 		}

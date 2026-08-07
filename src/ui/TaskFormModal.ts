@@ -1,6 +1,6 @@
-import { App, Modal, Notice, TFile } from "obsidian";
+import { App, Modal, Notice } from "obsidian";
 import { QuickAddButtonSettings, RuleDef } from "../settings/Settings";
-import { ResolvedTarget, appendTask, expandTargets } from "../core/appendTask";
+import { appendTask, targetLabel } from "../core/appendTask";
 import { addDays, resolveDateToken, todayISO } from "../core/dates";
 import { newTaskId } from "../core/taskId";
 
@@ -18,7 +18,6 @@ const PRIORITIES: [string, string][] = [
  * 아래로 들어간다.
  */
 export class TaskFormModal extends Modal {
-	private targets: ResolvedTarget[] = [];
 	private busy = false;
 
 	private title!: HTMLInputElement;
@@ -26,7 +25,6 @@ export class TaskFormModal extends Modal {
 	private prioSel!: HTMLSelectElement;
 	private startIn!: HTMLInputElement;
 	private dueIn!: HTMLInputElement;
-	private targetSel!: HTMLSelectElement;
 	private posSel!: HTMLSelectElement;
 	private idChk!: HTMLInputElement;
 	private createdChk!: HTMLInputElement;
@@ -35,25 +33,19 @@ export class TaskFormModal extends Modal {
 	constructor(
 		app: App,
 		private rule: RuleDef,
-		private settings: QuickAddButtonSettings,
-		private note: TFile
+		private settings: QuickAddButtonSettings
 	) {
 		super(app);
 	}
 
-	async onOpen(): Promise<void> {
+	onOpen(): void {
 		const { contentEl } = this;
 		contentEl.addClass("qab-modal");
 		contentEl.createEl("h3", { text: this.rule.label });
-
-		this.targets = await expandTargets(this.app, this.rule, this.note);
-		if (!this.targets.length) {
-			contentEl.createEl("div", {
-				cls: "qab-hint qab-hint-error",
-				text: "⚠️ 넣을 자리가 없습니다. 설정에서 이 규칙의 대상을 확인하세요.",
-			});
-			return;
-		}
+		contentEl.createEl("div", {
+			cls: "qab-hint",
+			text: `→ ${targetLabel(this.rule)}`,
+		});
 
 		const d = this.rule.defaults;
 		const form = contentEl.createEl("div", { cls: "qab-form" });
@@ -87,19 +79,14 @@ export class TaskFormModal extends Modal {
 			this.refresh();
 		});
 
-		// 3행 — 대상 · 위치 · 옵션
+		// 3행 — 위치 · 옵션
 		const row3 = form.createEl("div", { cls: "qab-row" });
-		row3.createEl("span", { text: "대상", cls: "qab-lbl" });
-		this.targetSel = mkSelect(
-			row3,
-			this.targets.map((t, i) => [t.label, String(i)] as [string, string]),
-			"0"
-		);
+		row3.createEl("span", { text: "위치", cls: "qab-lbl" });
 		this.posSel = mkSelect(
 			row3,
 			[
 				["섹션 끝", "end"],
-				["섹션 맨 위", "top"],
+				["헤딩 바로 밑", "top"],
 			],
 			d.position
 		);
@@ -171,19 +158,13 @@ export class TaskFormModal extends Modal {
 			new Notice("시작일이 마감일보다 뒤일 수 없습니다");
 			return;
 		}
-		const target = this.targets[Number(this.targetSel.value)];
-		if (!target) {
-			new Notice("넣을 자리를 선택하세요");
-			return;
-		}
-
 		this.busy = true;
 		try {
 			const id = this.idChk.checked ? await newTaskId(this.app) : "";
 			if (
 				await appendTask(
 					this.app,
-					target,
+					this.rule,
 					this.buildLine(id),
 					this.posSel.value === "top"
 				)

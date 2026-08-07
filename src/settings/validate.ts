@@ -3,7 +3,6 @@ import {
 	DEFAULT_TASK_DEFAULTS,
 	QuickAddButtonSettings,
 	RuleDef,
-	TaskTarget,
 } from "./Settings";
 
 export interface ValidationIssue {
@@ -11,6 +10,13 @@ export interface ValidationIssue {
 	index: number;
 	field: string;
 	message: string;
+}
+
+/** v1 의 targets[] 구조. 마이그레이션에만 쓴다. */
+interface LegacyTarget {
+	file?: string;
+	heading?: string;
+	level?: number;
 }
 
 /**
@@ -26,7 +32,7 @@ export function normalizeSettings(raw: unknown): {
 	const src = (raw ?? {}) as Partial<QuickAddButtonSettings>;
 
 	const settings: QuickAddButtonSettings = {
-		version: 1,
+		version: 2,
 		taskTags:
 			Array.isArray(src.taskTags) && src.taskTags.length
 				? src.taskTags.map((t) => String(t))
@@ -38,7 +44,7 @@ export function normalizeSettings(raw: unknown): {
 	const seen = new Set<string>();
 
 	rawRules.forEach((rr, i) => {
-		const r = rr as Partial<RuleDef>;
+		const r = rr as Partial<RuleDef> & { targets?: LegacyTarget[] };
 		const name = str(r.name, "").trim();
 		if (!name) {
 			issues.push({ index: i, field: "name", message: "규칙 이름이 비었습니다" });
@@ -54,25 +60,39 @@ export function normalizeSettings(raw: unknown): {
 		}
 		seen.add(name);
 
-		const targets = (Array.isArray(r.targets) ? r.targets : [])
-			.map((x) => normalizeTarget(x as Partial<TaskTarget>))
-			.filter((x): x is TaskTarget => x !== null);
+		// v1 → v2: targets[] 중 파일과 헤딩이 다 있는 첫 항목을 쓴다.
+		// @current 처럼 설정 시점에 헤딩을 정할 수 없던 항목은 버린다.
+		let file = str(r.file, "").replace(/^\/+/, "");
+		let heading = str(r.heading, "");
+		let level = Number(r.level) || 0;
+
+		if (!file && Array.isArray(r.targets)) {
+			const t = r.targets.find(
+				(x) => x?.file && !String(x.file).startsWith("@") && x.heading
+			);
+			if (t) {
+				file = String(t.file).replace(/^\/+/, "");
+				heading = String(t.heading);
+				level = Number(t.level) || 0;
+			}
+		}
 
 		const def: RuleDef = {
 			name,
 			label: str(r.label, name),
 			enabled: r.enabled !== false,
-			targets,
+			file,
+			heading,
+			level,
 			defaults: { ...DEFAULT_TASK_DEFAULTS, ...(r.defaults ?? {}) },
 		};
 		if (def.defaults.position !== "top") def.defaults.position = "end";
 
-		if (!targets.length) {
-			issues.push({
-				index: i,
-				field: "targets",
-				message: `${name}: 삽입 대상이 하나도 없습니다`,
-			});
+		if (!file) {
+			issues.push({ index: i, field: "file", message: `${name}: 삽입할 파일이 없습니다` });
+			def.enabled = false;
+		} else if (!heading) {
+			issues.push({ index: i, field: "heading", message: `${name}: 삽입할 헤딩이 없습니다` });
 			def.enabled = false;
 		}
 
@@ -80,19 +100,6 @@ export function normalizeSettings(raw: unknown): {
 	});
 
 	return { settings, issues };
-}
-
-function normalizeTarget(t: Partial<TaskTarget>): TaskTarget | null {
-	const file = String(t?.file ?? "").trim();
-	if (!file) return null;
-	const out: TaskTarget = { file };
-	if (t.heading) out.heading = String(t.heading);
-	if (t.level) out.level = Number(t.level) || 0;
-	if (t.headings === "h1-h3") out.headings = "h1-h3";
-	if (!out.heading) out.filePos = t.filePos === "start" ? "start" : "end";
-	if (t.label) out.label = String(t.label);
-	if (t.createFrom) out.createFrom = String(t.createFrom);
-	return out;
 }
 
 function str(v: unknown, fallback: string): string {
@@ -114,10 +121,8 @@ export function validateRule(
 	else if (all.some((r, i) => i !== selfIndex && r.name.trim() === name))
 		errs.push(`이미 같은 이름의 규칙이 있습니다: ${name}`);
 
-	if (!def.targets.length) errs.push("삽입 대상을 최소 하나 추가하세요.");
-	def.targets.forEach((t, i) => {
-		if (!t.file.trim()) errs.push(`대상 ${i + 1}: 파일을 선택하세요.`);
-	});
+	if (!def.file.trim()) errs.push("삽입할 파일을 선택하세요.");
+	if (!def.heading.trim()) errs.push("삽입할 헤딩을 선택하세요.");
 
 	return errs;
 }
