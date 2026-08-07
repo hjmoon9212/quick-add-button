@@ -3,36 +3,23 @@ import { App, TAbstractFile, TFile, TFolder } from "obsidian";
 export type Result<T> = { ok: true; value: T } | { ok: false; message: string };
 
 /**
- * 블록이 렌더된 노트를 허브로 해석한다.
+ * 블록이 렌더된 노트를 잡는다.
  *
  * 현행 dataviewjs 는 app.workspace.getActiveFile() 을 썼는데, 그러면 사이드바나
- * 호버 팝오버에서 렌더될 때 엉뚱한 노트를 허브로 오인한다. CodeBlockProcessor 는
+ * 호버 팝오버에서 렌더될 때 엉뚱한 노트를 잡는다. CodeBlockProcessor 는
  * ctx.sourcePath 를 주므로 그 문제가 구조적으로 없다.
  */
-export function resolveHub(
-	app: App,
-	sourcePath: string,
-	requireType: string | false
-): Result<TFile> {
+export function resolveNote(app: App, sourcePath: string): Result<TFile> {
 	const f = app.vault.getAbstractFileByPath(sourcePath);
 	if (!(f instanceof TFile)) {
 		return { ok: false, message: "현재 노트를 찾을 수 없습니다" };
 	}
-	if (requireType) {
-		const type = app.metadataCache.getFileCache(f)?.frontmatter?.["Type"];
-		if (type !== requireType) {
-			return {
-				ok: false,
-				message: `허브 노트(Type: ${requireType})에서만 사용할 수 있습니다`,
-			};
-		}
-	}
 	return { ok: true, value: f };
 }
 
-/** 허브 노트가 놓인 폴더 경로. 볼트 루트면 "" (앞의 "/" 를 만들지 않는다). */
-export function hubFolder(hub: TFile): string {
-	const p = hub.parent?.path ?? "";
+/** 노트가 놓인 폴더 경로. 볼트 루트면 "" (앞에 "/" 를 만들지 않는다). */
+export function noteFolder(note: TFile): string {
+	const p = note.parent?.path ?? "";
 	return p === "/" ? "" : p;
 }
 
@@ -45,21 +32,17 @@ export function joinPath(...parts: string[]): string {
 
 /**
  * 경로 토큰을 실제 볼트 경로로 푼다.
- *   "@current"   → 블록이 있는 노트
- *   "@hub/…"     → 허브 폴더 기준 상대
+ *   "@current"   → 버튼이 있는 노트
+ *   "@folder/…"  → 그 노트가 있는 폴더 기준 상대
  *   그 외         → 볼트 절대경로
  */
-export function resolveTargetPath(spec: string, hub: TFile): string {
-	if (spec === "@current") return hub.path;
-	if (spec.startsWith("@hub/")) return joinPath(hubFolder(hub), spec.slice(5));
-	if (spec === "@hub") return hubFolder(hub);
+export function resolveTargetPath(spec: string, note: TFile): string {
+	if (spec === "@current") return note.path;
+	if (spec.startsWith("@folder/")) return joinPath(noteFolder(note), spec.slice(8));
 	return spec.replace(/^\/+/, "");
 }
 
-/**
- * 폴더가 있게 만든다. 그 자리에 동명 "파일"이 있으면 만들지 않고 에러를 돌려준다
- * (현행 dataviewjs 의 분리 체크를 그대로 유지 — 실제 사고에서 나온 방어다).
- */
+/** 폴더가 있게 만든다. 그 자리에 동명 "파일"이 있으면 만들지 않고 알린다. */
 export async function ensureFolder(app: App, path: string): Promise<Result<TFolder>> {
 	if (!path) return { ok: false, message: "폴더 경로가 비었습니다" };
 
@@ -69,10 +52,8 @@ export async function ensureFolder(app: App, path: string): Promise<Result<TFold
 		return { ok: false, message: `같은 이름의 파일이 존재합니다: ${path}` };
 	}
 	try {
-		const created = await app.vault.createFolder(path);
-		return { ok: true, value: created };
+		return { ok: true, value: await app.vault.createFolder(path) };
 	} catch (e) {
-		// 동시 생성 등으로 이미 만들어졌을 수 있다.
 		const again = app.vault.getAbstractFileByPath(path);
 		if (again instanceof TFolder) return { ok: true, value: again };
 		return { ok: false, message: `폴더 생성 실패: ${errMsg(e)}` };

@@ -1,8 +1,8 @@
 import {
 	DEFAULT_SETTINGS,
 	DEFAULT_TASK_DEFAULTS,
-	HubButtonSettings,
-	HubTypeDef,
+	QuickAddButtonSettings,
+	RuleDef,
 	TaskTarget,
 } from "./Settings";
 
@@ -16,82 +16,67 @@ export interface ValidationIssue {
 /**
  * data.json 은 사용자가 직접 고칠 수 있는 파일이고 TS 타입은 런타임에 없다.
  * 그래서 로드 시점에 반드시 정규화한다. 잘못된 규칙 하나 때문에 전체 설정이
- * 죽으면 안 되므로, 고칠 수 있으면 고치고 못 고치면 그 규칙만 비활성화한다.
+ * 죽으면 안 되므로, 고칠 수 있으면 고치고 못 고치면 그 규칙만 끈다.
  */
 export function normalizeSettings(raw: unknown): {
-	settings: HubButtonSettings;
+	settings: QuickAddButtonSettings;
 	issues: ValidationIssue[];
 } {
 	const issues: ValidationIssue[] = [];
-	const src = (raw ?? {}) as Partial<HubButtonSettings>;
+	const src = (raw ?? {}) as Partial<QuickAddButtonSettings>;
 
-	const settings: HubButtonSettings = {
+	const settings: QuickAddButtonSettings = {
 		version: 1,
-		requireHubType: str(src.requireHubType, DEFAULT_SETTINGS.requireHubType),
-		linkField: str(src.linkField, DEFAULT_SETTINGS.linkField),
-		runTemplater:
-			typeof src.runTemplater === "boolean"
-				? src.runTemplater
-				: DEFAULT_SETTINGS.runTemplater,
-		taskTags: Array.isArray(src.taskTags) && src.taskTags.length
-			? src.taskTags.map((t) => String(t))
-			: [...DEFAULT_SETTINGS.taskTags],
-		types: [],
+		taskTags:
+			Array.isArray(src.taskTags) && src.taskTags.length
+				? src.taskTags.map((t) => String(t))
+				: [...DEFAULT_SETTINGS.taskTags],
+		rules: [],
 	};
 
-	const rawTypes = Array.isArray(src.types) ? src.types : DEFAULT_SETTINGS.types;
+	const rawRules = Array.isArray(src.rules) ? src.rules : DEFAULT_SETTINGS.rules;
 	const seen = new Set<string>();
 
-	rawTypes.forEach((rt, i) => {
-		const t = rt as Partial<HubTypeDef>;
-		const name = str(t.name, "").trim();
+	rawRules.forEach((rr, i) => {
+		const r = rr as Partial<RuleDef>;
+		const name = str(r.name, "").trim();
 		if (!name) {
-			issues.push({ index: i, field: "name", message: "타입 이름이 비었습니다" });
+			issues.push({ index: i, field: "name", message: "규칙 이름이 비었습니다" });
 			return;
 		}
 		if (seen.has(name)) {
 			issues.push({
 				index: i,
 				field: "name",
-				message: `타입 이름이 중복됩니다: ${name}`,
+				message: `규칙 이름이 중복됩니다: ${name}`,
 			});
 			return;
 		}
 		seen.add(name);
 
-		const action = t.action === "append-task" ? "append-task" : "create-note";
-		const def: HubTypeDef = {
-			name,
-			label: str(t.label, name),
-			action,
-			enabled: t.enabled !== false,
-		};
+		const targets = (Array.isArray(r.targets) ? r.targets : [])
+			.map((x) => normalizeTarget(x as Partial<TaskTarget>))
+			.filter((x): x is TaskTarget => x !== null);
 
-		if (action === "create-note") {
-			def.folder = str(t.folder, "").replace(/^\/+|\/+$/g, "");
-			def.template = str(t.template, "").replace(/^\/+/, "");
-			if (!def.folder) {
-				issues.push({ index: i, field: "folder", message: `${name}: 하위 폴더가 비었습니다` });
-				def.enabled = false;
-			}
-			if (!def.template) {
-				issues.push({ index: i, field: "template", message: `${name}: 템플릿 경로가 비었습니다` });
-				def.enabled = false;
-			}
-		} else {
-			const targets = (Array.isArray(t.targets) ? t.targets : [])
-				.map((x) => normalizeTarget(x as Partial<TaskTarget>))
-				.filter((x): x is TaskTarget => x !== null);
-			if (!targets.length) {
-				issues.push({ index: i, field: "targets", message: `${name}: 삽입 대상이 하나도 없습니다` });
-				def.enabled = false;
-			}
-			def.targets = targets;
-			def.defaults = { ...DEFAULT_TASK_DEFAULTS, ...(t.defaults ?? {}) };
-			if (def.defaults.position !== "top") def.defaults.position = "end";
+		const def: RuleDef = {
+			name,
+			label: str(r.label, name),
+			enabled: r.enabled !== false,
+			targets,
+			defaults: { ...DEFAULT_TASK_DEFAULTS, ...(r.defaults ?? {}) },
+		};
+		if (def.defaults.position !== "top") def.defaults.position = "end";
+
+		if (!targets.length) {
+			issues.push({
+				index: i,
+				field: "targets",
+				message: `${name}: 삽입 대상이 하나도 없습니다`,
+			});
+			def.enabled = false;
 		}
 
-		settings.types.push(def);
+		settings.rules.push(def);
 	});
 
 	return { settings, issues };
@@ -114,28 +99,24 @@ function str(v: unknown, fallback: string): string {
 }
 
 /** 편집 Modal 저장 직전 검사. 반환값이 비어 있으면 저장 가능. */
-export function validateType(
-	def: HubTypeDef,
-	all: HubTypeDef[],
+export function validateRule(
+	def: RuleDef,
+	all: RuleDef[],
 	selfIndex: number
 ): string[] {
 	const errs: string[] = [];
 	const name = def.name.trim();
 
-	if (!name) errs.push("타입 이름을 입력하세요.");
+	if (!name) errs.push("규칙 이름을 입력하세요.");
 	else if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(name))
-		errs.push("타입 이름은 영문으로 시작하고 영숫자/-/_ 만 쓸 수 있습니다 (frontmatter Type 값이 됩니다).");
-	else if (all.some((t, i) => i !== selfIndex && t.name.trim() === name))
+		errs.push("규칙 이름은 영문으로 시작하고 영숫자 / - / _ 만 쓸 수 있습니다 (코드블록에서 이 이름으로 부릅니다).");
+	else if (all.some((r, i) => i !== selfIndex && r.name.trim() === name))
 		errs.push(`이미 같은 이름의 규칙이 있습니다: ${name}`);
 
-	if (def.action === "create-note") {
-		if (!def.folder?.trim()) errs.push("하위 폴더를 입력하세요.");
-		if (!def.template?.trim()) errs.push("템플릿 경로를 입력하세요.");
-	} else {
-		if (!def.targets?.length) errs.push("삽입 대상을 최소 하나 추가하세요.");
-		def.targets?.forEach((t, i) => {
-			if (!t.file.trim()) errs.push(`대상 ${i + 1}: 파일 경로가 비었습니다.`);
-		});
-	}
+	if (!def.targets.length) errs.push("삽입 대상을 최소 하나 추가하세요.");
+	def.targets.forEach((t, i) => {
+		if (!t.file.trim()) errs.push(`대상 ${i + 1}: 파일을 선택하세요.`);
+	});
+
 	return errs;
 }

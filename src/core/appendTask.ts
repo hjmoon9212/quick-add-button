@@ -1,5 +1,5 @@
 import { App, Notice, TFile } from "obsidian";
-import { HubTypeDef, TaskTarget } from "../settings/Settings";
+import { RuleDef, TaskTarget } from "../settings/Settings";
 import { HeadingRef, insertTaskLine, scanHeadings } from "./insertTaskLine";
 import { ensureFile, resolveTargetPath } from "./resolve";
 
@@ -13,20 +13,20 @@ export interface ResolvedTarget {
 }
 
 /**
- * 규칙의 targets[] 를 클릭 시점의 실제 선택지로 전개한다.
+ * 규칙의 targets[] 를 클릭 시점의 실제 선택지로 펼친다.
  * headings: "h1-h3" 인 항목은 그 파일의 H1~H3 개수만큼 늘어난다.
  */
 export async function expandTargets(
 	app: App,
-	def: HubTypeDef,
-	hub: TFile
+	def: RuleDef,
+	note: TFile
 ): Promise<ResolvedTarget[]> {
 	const out: ResolvedTarget[] = [];
 
-	for (const t of def.targets ?? []) {
-		const path = resolveTargetPath(t.file, hub);
+	for (const t of def.targets) {
+		const path = resolveTargetPath(t.file, note);
 		if (t.headings === "h1-h3") {
-			out.push(...(await expandHeadings(app, t, path, hub)));
+			out.push(...(await expandHeadings(app, t, path, note)));
 		} else {
 			out.push({
 				label: t.label || defaultLabel(path, t.heading ?? ""),
@@ -44,15 +44,15 @@ async function expandHeadings(
 	app: App,
 	t: TaskTarget,
 	path: string,
-	hub: TFile
+	note: TFile
 ): Promise<ResolvedTarget[]> {
 	const file = app.vault.getAbstractFileByPath(path);
 	if (!(file instanceof TFile)) return [];
 
-	// 캐시 대신 본문을 스캔한다. metadataCache 의 headings 는 코드펜스 안의 "#" 도
-	// 헤딩으로 잡을 때가 있고, 삽입 로직과 같은 규칙으로 봐야 서로 어긋나지 않는다.
+	// 캐시가 아니라 본문을 스캔한다. 삽입 로직과 같은 규칙(코드펜스 무시)으로 봐야
+	// 드롭다운에 뜬 헤딩과 실제로 들어가는 자리가 어긋나지 않는다.
 	const headings: HeadingRef[] = scanHeadings(await app.vault.cachedRead(file));
-	const prefix = t.label || (path === hub.path ? "현재 노트" : baseName(path));
+	const prefix = t.label || (path === note.path ? "현재 노트" : baseName(path));
 
 	return headings.map((h) => ({
 		label: `${prefix} › ${"·".repeat(h.level - 1)}${h.heading}`,
@@ -72,7 +72,7 @@ function defaultLabel(path: string, heading: string): string {
 	return heading ? `${baseName(path)} › ${heading}` : `${baseName(path)} (끝)`;
 }
 
-/** 조립된 task 한 줄을 대상에 삽입한다. */
+/** 조립된 task 한 줄을 대상에 넣는다. */
 export async function appendTask(
 	app: App,
 	target: ResolvedTarget,
