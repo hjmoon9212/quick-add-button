@@ -91,13 +91,20 @@ export default class HubButtonPlugin extends Plugin {
 	/**
 	 * 규칙마다 커맨드를 등록해 커맨드 팔레트/모바일 툴바에서도 부를 수 있게 한다.
 	 * QuickAdd choice 를 등록하려고 옵시디언을 끄고 data.json 을 고칠 필요가 없다.
+	 *
+	 * 규칙을 지우거나 끄면 커맨드도 같이 거둔다. 안 그러면 삭제한 규칙의 커맨드가
+	 * 재시작 전까지 남아서 실제로 동작해 버린다.
 	 */
 	private registerTypeCommands(): void {
+		const wanted = new Set<string>();
+
 		for (const def of this.settings.types) {
 			if (!def.enabled) continue;
+			const id = `hub-${def.name}`;
+			wanted.add(id);
 			this.addCommand({
-				id: `hub-${def.name}`,
-				name: `${def.label}`,
+				id,
+				name: def.label,
 				checkCallback: (checking) => {
 					const file = this.app.workspace.getActiveFile();
 					if (!file) return false;
@@ -106,6 +113,24 @@ export default class HubButtonPlugin extends Plugin {
 					return true;
 				},
 			});
+		}
+
+		for (const id of this.commandIds) {
+			if (!wanted.has(id)) this.removeCommandById(`${this.manifest.id}:${id}`);
+		}
+		this.commandIds = wanted;
+	}
+
+	private commandIds = new Set<string>();
+
+	private removeCommandById(fullId: string): void {
+		const commands = (this.app as unknown as {
+			commands?: { removeCommand?: (id: string) => void };
+		}).commands;
+		try {
+			commands?.removeCommand?.(fullId);
+		} catch {
+			/* 비공개 API 라 형태가 바뀔 수 있다. 실패해도 나머지는 계속 간다 */
 		}
 	}
 
