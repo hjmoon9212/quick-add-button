@@ -30,9 +30,10 @@ export function normalizeSettings(raw: unknown): {
 } {
 	const issues: ValidationIssue[] = [];
 	const src = (raw ?? {}) as Partial<QuickAddButtonSettings>;
+	const prevVersion = Number(src.version) || 1;
 
 	const settings: QuickAddButtonSettings = {
-		version: 2,
+		version: 3,
 		taskTags:
 			Array.isArray(src.taskTags) && src.taskTags.length
 				? src.taskTags.map((t) => String(t))
@@ -87,6 +88,9 @@ export function normalizeSettings(raw: unknown): {
 			defaults: { ...DEFAULT_TASK_DEFAULTS, ...(r.defaults ?? {}) },
 		};
 		if (def.defaults.position !== "top") def.defaults.position = "end";
+		// v3 부터 🆔 기본값이 켜짐이다. 그 전 설정은 기본값이 꺼짐이던 시절에
+		// 저장된 것이므로, 사용자가 끈 것과 구분되지 않아 한 번만 올려준다.
+		if (prevVersion < 3) def.defaults.id = true;
 
 		if (!file) {
 			issues.push({ index: i, field: "file", message: `${name}: 삽입할 파일이 없습니다` });

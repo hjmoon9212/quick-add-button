@@ -1,6 +1,6 @@
 {
   "name": "quick-add-button",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Buttons that add Obsidian Tasks lines under a chosen heading of a chosen note, configured from the settings tab.",
   "main": "main.js",
   "scripts": {

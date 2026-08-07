@@ -40,12 +40,12 @@ export const DEFAULT_TASK_DEFAULTS: TaskDefaults = {
 	start: "",
 	priority: "",
 	created: true,
-	id: false,
+	id: true,
 	position: "end",
 };
 
 export const DEFAULT_SETTINGS: QuickAddButtonSettings = {
-	version: 2,
+	version: 3,
 	taskTags: ["#task", "#task/ISSUE", "#task/Deploy"],
 	rules: [
 		{
