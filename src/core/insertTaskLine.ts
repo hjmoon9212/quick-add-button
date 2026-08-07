@@ -23,9 +23,18 @@ export function scanHeadings(text: string, maxLevel = 3): HeadingRef[] {
 	return out;
 }
 
+/** 프론트매터가 끝나는 다음 줄 번호. 없으면 0. */
+export function bodyStart(lines: string[]): number {
+	if (lines[0]?.trim() !== "---") return 0;
+	for (let i = 1; i < lines.length; i++) {
+		if (lines[i].trim() === "---") return i + 1;
+	}
+	return 0; // 닫히지 않은 프론트매터는 프론트매터로 보지 않는다
+}
+
 /**
  * 지정한 헤딩 섹션의 끝(또는 맨 위)에 한 줄을 넣는다.
- * heading 이 "" 이면 파일 맨 끝에 append 한다.
+ * heading 이 "" 이면 filePos 에 따라 파일 시작 또는 파일 끝에 넣는다.
  *
  * 섹션의 끝 = 다음 동급/상위 헤딩 직전. 코드펜스 안은 헤딩으로 보지 않는다 —
  * 실제로 Temp Tasks.md 에는 ``` fold 블록 안에 표가 들어 있다.
@@ -38,7 +47,8 @@ export async function insertTaskLine(
 	line: string,
 	heading: string,
 	level: number,
-	atTop: boolean
+	atTop: boolean,
+	filePos: "start" | "end" = "end"
 ): Promise<boolean> {
 	let ok = false;
 
@@ -46,9 +56,16 @@ export async function insertTaskLine(
 		const lines = data.split("\n");
 
 		if (!heading) {
-			let end = lines.length;
-			while (end > 0 && lines[end - 1].trim() === "") end--;
-			lines.splice(end, 0, line);
+			let at: number;
+			if (filePos === "start") {
+				// 프론트매터 아래로 넣는다. 위에 얹으면 YAML 이 깨진다.
+				at = bodyStart(lines);
+				while (at < lines.length && lines[at].trim() === "") at++;
+			} else {
+				at = lines.length;
+				while (at > 0 && lines[at - 1].trim() === "") at--;
+			}
+			lines.splice(at, 0, line);
 			ok = true;
 			return lines.join("\n");
 		}

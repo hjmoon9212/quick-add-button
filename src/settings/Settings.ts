@@ -5,10 +5,12 @@ export interface TaskTarget {
 	 * 폴더 기준 상대경로)
 	 */
 	file: string;
-	/** 삽입할 헤딩 텍스트. "" 이면 파일 맨 끝에 넣는다 */
+	/** 삽입할 헤딩 텍스트. "" 이면 헤딩이 아니라 파일 기준(filePos)으로 넣는다 */
 	heading?: string;
 	/** 헤딩 레벨(1~6). 0/미지정이면 텍스트만으로 매칭 */
 	level?: number;
+	/** heading 이 "" 일 때만 쓴다. "start" = 프론트매터 바로 아래, "end" = 파일 맨 끝 */
+	filePos?: "start" | "end";
 	/** "h1-h3" → 클릭 시점에 그 파일의 H1~H3 를 드롭다운으로 펼친다 */
 	headings?: "h1-h3";
 	/** 드롭다운 표시 라벨. 없으면 파일명 + 헤딩으로 자동 생성 */

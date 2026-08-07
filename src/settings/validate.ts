@@ -89,6 +89,7 @@ function normalizeTarget(t: Partial<TaskTarget>): TaskTarget | null {
 	if (t.heading) out.heading = String(t.heading);
 	if (t.level) out.level = Number(t.level) || 0;
 	if (t.headings === "h1-h3") out.headings = "h1-h3";
+	if (!out.heading) out.filePos = t.filePos === "start" ? "start" : "end";
 	if (t.label) out.label = String(t.label);
 	if (t.createFrom) out.createFrom = String(t.createFrom);
 	return out;

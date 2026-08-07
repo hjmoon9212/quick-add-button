@@ -159,44 +159,83 @@ export class RuleEditModal extends Modal {
 
 	private renderTargetRow(root: HTMLElement, t: TaskTarget, i: number): void {
 		const s = new Setting(root).setClass("qab-target-row");
+		let sel: HTMLSelectElement;
+
+		/**
+		 * 파일이 바뀌면 헤딩 목록을 그 자리에서 다시 채운다.
+		 * 여기서 this.render() 를 부르면 타이핑 도중 입력칸이 새로 그려져 포커스를
+		 * 잃으므로, 옵션만 갈아끼운다.
+		 */
+		const refreshHeadings = () => {
+			if (!sel) return;
+			sel.empty();
+
+			if (t.file === "@current") {
+				// 어느 노트에서 눌렀는지에 따라 헤딩이 달라지므로 지금은 정할 수 없다.
+				t.headings = "h1-h3";
+				const o = sel.createEl("option", { text: "누를 때 그 노트의 헤딩에서 선택" });
+				o.value = "";
+				sel.disabled = true;
+				return;
+			}
+
+			delete t.headings;
+			sel.disabled = false;
+
+			const start = sel.createEl("option", { text: "파일 시작" });
+			start.value = "^";
+			const end = sel.createEl("option", { text: "파일 끝" });
+			end.value = "$";
+
+			for (const h of this.headingsOf(t.file)) {
+				const o = sel.createEl("option", {
+					text: `${"·".repeat(h.level - 1)}${h.heading}`,
+				});
+				o.value = `${h.level}:${h.heading}`;
+			}
+
+			sel.value = t.heading
+				? `${t.level ?? 1}:${t.heading}`
+				: t.filePos === "start"
+				? "^"
+				: "$";
+			// 저장돼 있던 헤딩이 파일에서 사라진 경우
+			if (!sel.value) sel.value = "$";
+		};
 
 		s.addText((c) => {
 			c.setPlaceholder("파일 경로 또는 @current")
 				.setValue(t.file)
-				.onChange((v) => (t.file = v));
+				.onChange((v) => {
+					t.file = v.trim();
+					t.heading = "";
+					t.level = 0;
+					refreshHeadings();
+				});
 			new FileSuggest(this.app, c.inputEl, (v) => {
 				t.file = v;
 				t.heading = "";
 				t.level = 0;
-				this.render();
+				refreshHeadings();
 			});
 		});
 
-		if (t.file === "@current") {
-			t.headings = "h1-h3";
-		} else {
-			delete t.headings;
-			s.addDropdown((dd) => {
-				dd.addOption("", "(파일 끝)");
-				for (const h of this.headingsOf(t.file)) {
-					dd.addOption(
-						`${h.level}:${h.heading}`,
-						`${"·".repeat(h.level - 1)}${h.heading}`
-					);
+		s.addDropdown((dd) => {
+			sel = dd.selectEl;
+			dd.onChange((v) => {
+				if (v === "^" || v === "$") {
+					t.heading = "";
+					t.level = 0;
+					t.filePos = v === "^" ? "start" : "end";
+					return;
 				}
-				dd.setValue(t.heading ? `${t.level ?? 1}:${t.heading}` : "");
-				dd.onChange((v) => {
-					if (!v) {
-						t.heading = "";
-						t.level = 0;
-						return;
-					}
-					const at = v.indexOf(":");
-					t.level = Number(v.slice(0, at));
-					t.heading = v.slice(at + 1);
-				});
+				const at = v.indexOf(":");
+				t.level = Number(v.slice(0, at));
+				t.heading = v.slice(at + 1);
+				delete t.filePos;
 			});
-		}
+		});
+		refreshHeadings();
 
 		s.addText((c) =>
 			c
