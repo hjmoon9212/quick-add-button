@@ -1,0 +1,131 @@
+/* ── 코드블록 렌더 ─────────────────────────────────────── */
+.hub-button-block .hub-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 8px;
+  align-items: center;
+}
+
+.hub-button-block button.hub-button {
+  cursor: pointer;
+}
+
+.hub-button-error {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-left: 4px solid var(--text-warning, #eab308);
+  border-radius: 5px;
+  background: var(--background-secondary);
+}
+
+.hub-button-error-icon {
+  display: inline-flex;
+  color: var(--text-warning, #eab308);
+}
+
+/* ── 모달 공통 ─────────────────────────────────────────── */
+.hub-button-modal .hub-button-hint {
+  margin: 2px 0 8px;
+  font-size: 12px;
+  opacity: 0.7;
+  font-family: var(--font-monospace);
+  word-break: break-all;
+}
+
+.hub-button-modal .hub-button-hint-error {
+  color: var(--text-error);
+  opacity: 1;
+}
+
+.hub-button-errors:empty {
+  display: none;
+}
+
+.hub-button-errors {
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+/* ── 할일 폼 ───────────────────────────────────────────── */
+.hub-button-form .hub-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.hub-button-form .hub-button-title {
+  flex: 1 1 240px;
+  min-width: 170px;
+  font-size: 13px;
+}
+
+.hub-button-form .hub-button-lbl {
+  opacity: 0.7;
+}
+
+.hub-button-form button.hub-button-chip {
+  font-size: 11px;
+  padding: 1px 9px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.hub-button-form .hub-button-chk {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.hub-button-form .hub-button-preview {
+  margin-top: 8px;
+  font-size: 11.5px;
+  font-family: var(--font-monospace);
+  opacity: 0.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.hub-button-form .hub-button-actions {
+  justify-content: flex-end;
+}
+
+/* ── 설정탭 ────────────────────────────────────────────── */
+.hub-button-settings .hub-button-rule {
+  padding: 8px 0;
+}
+
+.hub-button-settings .hub-button-target-row .setting-item-control {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hub-button-settings .hub-button-hidden {
+  display: none;
+}
+
+.hub-button-io {
+  margin-top: 12px;
+}
+
+.hub-button-io summary {
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+textarea.hub-button-json {
+  width: 100%;
+  margin-top: 8px;
+  font-family: var(--font-monospace);
+  font-size: 11.5px;
+}
