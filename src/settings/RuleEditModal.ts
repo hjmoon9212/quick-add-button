@@ -69,7 +69,7 @@ export class RuleEditModal extends Modal {
 
 		new Setting(contentEl)
 			.setName("규칙 이름")
-			.setDesc("코드블록에서 이 이름으로 부릅니다. 예: rules: TempTask")
+			.setDesc("코드블록에서 이 버튼을 지목할 때 쓰는 이름입니다. 영문으로 짓습니다.")
 			.addText((t) =>
 				t
 					.setPlaceholder("TempTask")
@@ -79,7 +79,7 @@ export class RuleEditModal extends Modal {
 
 		new Setting(contentEl)
 			.setName("버튼 라벨")
-			.setDesc("버튼에 찍히는 글자. 이모지 + 짧은 한글을 권장합니다.")
+			.setDesc("노트에 보이는 버튼 글자입니다.")
 			.addText((t) =>
 				t
 					.setPlaceholder("⚡ 임시 할일")
@@ -87,11 +87,11 @@ export class RuleEditModal extends Modal {
 					.onChange((v) => (this.draft.label = v))
 			);
 
-		new Setting(contentEl).setName("삽입 대상").setHeading();
+		new Setting(contentEl).setName("이 버튼이 넣을 곳").setHeading();
 
 		new Setting(contentEl)
 			.setName("파일")
-			.setDesc("입력하면 볼트의 노트를 검색합니다.")
+			.setDesc("할일을 넣을 노트. 입력하면 볼트에서 검색됩니다.")
 			.addText((t) => {
 				t.setPlaceholder("0. Note/0. Inbox/Temp Tasks.md")
 					.setValue(this.draft.file)
@@ -124,15 +124,23 @@ export class RuleEditModal extends Modal {
 		this.headingDesc = headingSetting.descEl;
 		this.refreshHeadings();
 
-		new Setting(contentEl).setName("폼 기본값").setHeading();
+		new Setting(contentEl)
+			.setName("태그")
+			.setDesc("이 버튼으로 넣는 할일에 항상 붙는 태그입니다. 버튼마다 다르게 둘 수 있습니다.")
+			.addText((t) =>
+				t
+					.setPlaceholder("#task")
+					.setValue(this.draft.tag)
+					.onChange((v) => (this.draft.tag = v))
+			);
+
+		new Setting(contentEl).setName("폼을 열었을 때 기본 상태").setHeading();
 		const d = this.draft.defaults;
 
 		new Setting(contentEl)
-			.setName("기본 태그")
-			.addText((t) =>
-				t.setPlaceholder("#task").setValue(d.tag).onChange((v) => (d.tag = v))
-			);
-		new Setting(contentEl).setName("기본 마감일").addDropdown((dd) =>
+			.setName("마감일")
+			.setDesc("폼의 📅 칸에 미리 채워 둘 값입니다. 폼에서 바꿀 수 있습니다.")
+			.addDropdown((dd) =>
 			dd
 				.addOption("", "없음")
 				.addOption("today", "오늘")
@@ -142,7 +150,8 @@ export class RuleEditModal extends Modal {
 				.onChange((v) => (d.due = v))
 		);
 		new Setting(contentEl)
-			.setName("헤딩 아래 어디에")
+			.setName("헤딩 아래 어느 위치")
+			.setDesc("섹션 끝 = 다음 헤딩 직전(시간순으로 쌓임) · 헤딩 바로 밑 = 최신이 위로.")
 			.addDropdown((dd) =>
 				dd
 					.addOption("end", "섹션 끝")
@@ -151,11 +160,12 @@ export class RuleEditModal extends Modal {
 					.onChange((v) => (d.position = v as "end" | "top"))
 			);
 		new Setting(contentEl)
-			.setName("➕ 생성일 기본 체크")
+			.setName("➕ 생성일")
+			.setDesc("할일에 만든 날짜를 붙입니다.")
 			.addToggle((t) => t.setValue(d.created).onChange((v) => (d.created = v)));
 		new Setting(contentEl)
-			.setName("🆔 아이디 기본 체크")
-			.setDesc("켜면 추가할 때마다 볼트 전역에서 미사용인 6자리를 붙입니다.")
+			.setName("🆔 아이디")
+			.setDesc("고유 6자리를 붙입니다. 조상 트리 뷰와 캘린더 동기화가 이걸로 할일을 추적합니다.")
 			.addToggle((t) => t.setValue(d.id).onChange((v) => (d.id = v)));
 
 		const errBox = contentEl.createEl("div", { cls: "qab-errors" });

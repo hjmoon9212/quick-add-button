@@ -20,26 +20,7 @@ export class QuickAddButtonSettingTab extends PluginSettingTab {
 		containerEl.empty();
 		containerEl.addClass("qab-settings");
 
-		containerEl.createEl("div", {
-			cls: "qab-hint",
-			text:
-				"노트에 ```quick-add-button 코드블록을 넣으면 아래 규칙들이 버튼으로 뜹니다. " +
-				"빈 블록이면 켜져 있는 규칙 전부, `rules: TempTask` 처럼 적으면 그 규칙만 나옵니다.",
-		});
-
-		new Setting(containerEl)
-			.setName("할일 태그 후보")
-			.setDesc("폼의 태그 드롭다운에 넣을 목록 (콤마 구분).")
-			.addText((t) =>
-				t.setValue(this.plugin.settings.taskTags.join(", ")).onChange(async (v) => {
-					const tags = v
-						.split(",")
-						.map((s) => s.trim())
-						.filter(Boolean);
-					this.plugin.settings.taskTags = tags.length ? tags : ["#task"];
-					await this.plugin.saveSettings();
-				})
-			);
+		this.renderUsage(containerEl);
 
 		new Setting(containerEl).setName("규칙").setHeading();
 
@@ -75,11 +56,39 @@ export class QuickAddButtonSettingTab extends PluginSettingTab {
 		this.renderPortability(containerEl);
 	}
 
+	/** 버튼을 어떻게 넣는지 — 붙여넣을 것 하나만 보여준다. */
+	private renderUsage(root: HTMLElement): void {
+		const fence = "`".repeat(3);
+		const snippet = [fence + "quick-add-button", fence].join("\n");
+
+		root.createEl("p", {
+			cls: "qab-usage-lead",
+			text: "노트에 아래 블록을 붙여넣으면 켜져 있는 버튼이 모두 나옵니다.",
+		});
+
+		const box = root.createEl("div", { cls: "qab-usage" });
+		box.createEl("pre", { cls: "qab-code", text: snippet });
+		const copy = box.createEl("button", { text: "복사" });
+		copy.onclick = async () => {
+			await navigator.clipboard.writeText(snippet);
+			copy.setText("복사됨");
+			window.setTimeout(() => copy.setText("복사"), 1200);
+		};
+
+		const more = root.createEl("div", { cls: "qab-usage-more" });
+		more.createEl("div", { text: "일부만 넣으려면 블록 안에 한 줄 더:" });
+		const dl = more.createEl("dl");
+		dl.createEl("dt", { text: "rules: TempTask, ProjIssue" });
+		dl.createEl("dd", { text: "적은 것만, 적은 순서대로" });
+		dl.createEl("dt", { text: "exclude: TempTask" });
+		dl.createEl("dd", { text: "그것만 빼고 전부" });
+	}
+
 	private renderRule(root: HTMLElement, rule: RuleDef, i: number): void {
 		const total = this.plugin.settings.rules.length;
 		const s = new Setting(root)
 			.setName(rule.label || rule.name)
-			.setDesc(`${rule.name} → ${short(rule.file)} › ${rule.heading}`)
+			.setDesc(`${rule.tag}  →  ${short(rule.file)} › ${rule.heading}`)
 			.setClass("qab-rule");
 
 		s.addToggle((t) =>

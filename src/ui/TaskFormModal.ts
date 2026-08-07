@@ -21,7 +21,6 @@ export class TaskFormModal extends Modal {
 	private busy = false;
 
 	private title!: HTMLInputElement;
-	private tagSel!: HTMLSelectElement;
 	private prioSel!: HTMLSelectElement;
 	private startIn!: HTMLInputElement;
 	private dueIn!: HTMLInputElement;
@@ -44,7 +43,7 @@ export class TaskFormModal extends Modal {
 		contentEl.createEl("h3", { text: this.rule.label });
 		contentEl.createEl("div", {
 			cls: "qab-hint",
-			text: `→ ${targetLabel(this.rule)}`,
+			text: `${this.rule.tag}  →  ${targetLabel(this.rule)}`,
 		});
 
 		const d = this.rule.defaults;
@@ -55,11 +54,6 @@ export class TaskFormModal extends Modal {
 		this.title = row1.createEl("input", { cls: "qab-title" });
 		this.title.type = "text";
 		this.title.placeholder = "할 일 내용 (Enter = 추가)";
-		this.tagSel = mkSelect(
-			row1,
-			this.settings.taskTags.map((t) => [t, t] as [string, string]),
-			d.tag
-		);
 		this.prioSel = mkSelect(row1, PRIORITIES, d.priority);
 
 		// 2행 — 날짜
@@ -101,7 +95,6 @@ export class TaskFormModal extends Modal {
 
 		for (const el of [
 			this.title,
-			this.tagSel,
 			this.prioSel,
 			this.startIn,
 			this.dueIn,
@@ -128,7 +121,7 @@ export class TaskFormModal extends Modal {
 	}
 
 	private buildLine(id: string): string {
-		const parts = [`- [ ] ${this.tagSel.value} ${this.title.value.trim() || "내용"}`];
+		const parts = [`- [ ] ${this.rule.tag} ${this.title.value.trim() || "내용"}`];
 		if (this.prioSel.value) parts.push(this.prioSel.value);
 		if (this.idChk.checked) parts.push(`🆔 ${id}`);
 		if (this.createdChk.checked) parts.push(`➕ ${todayISO()}`);

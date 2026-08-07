@@ -1,5 +1,4 @@
 export interface TaskDefaults {
-	tag: string;
 	/** "" | "today" | "tomorrow" | "+7" */
 	due: string;
 	start: string;
@@ -11,7 +10,7 @@ export interface TaskDefaults {
 	position: "end" | "top";
 }
 
-/** 버튼 하나 = 규칙 하나. 넣을 자리는 파일 하나 + 헤딩 하나로 고정된다. */
+/** 버튼 하나 = 규칙 하나. 넣을 자리와 태그가 버튼에 고정된다. */
 export interface RuleDef {
 	/** 코드블록에서 부르는 이름 */
 	name: string;
@@ -24,18 +23,17 @@ export interface RuleDef {
 	heading: string;
 	/** 헤딩 레벨(1~6). 같은 이름의 헤딩이 여러 개일 때 구분한다 */
 	level: number;
+	/** 이 버튼으로 넣는 할일에 붙는 태그. 버튼마다 다르다 */
+	tag: string;
 	defaults: TaskDefaults;
 }
 
 export interface QuickAddButtonSettings {
 	version: number;
-	/** 폼의 태그 드롭다운 후보 */
-	taskTags: string[];
 	rules: RuleDef[];
 }
 
 export const DEFAULT_TASK_DEFAULTS: TaskDefaults = {
-	tag: "#task",
 	due: "today",
 	start: "",
 	priority: "",
@@ -45,8 +43,7 @@ export const DEFAULT_TASK_DEFAULTS: TaskDefaults = {
 };
 
 export const DEFAULT_SETTINGS: QuickAddButtonSettings = {
-	version: 3,
-	taskTags: ["#task", "#task/ISSUE", "#task/Deploy"],
+	version: 4,
 	rules: [
 		{
 			name: "TempTask",
@@ -55,6 +52,7 @@ export const DEFAULT_SETTINGS: QuickAddButtonSettings = {
 			file: "0. Note/0. Inbox/Temp Tasks.md",
 			heading: "Quick Add",
 			level: 1,
+			tag: "#task",
 			defaults: { ...DEFAULT_TASK_DEFAULTS },
 		},
 	],
@@ -69,6 +67,7 @@ export function blankRule(): RuleDef {
 		file: "",
 		heading: "",
 		level: 0,
+		tag: "#task",
 		defaults: { ...DEFAULT_TASK_DEFAULTS },
 	};
 }

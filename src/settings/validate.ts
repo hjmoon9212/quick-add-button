@@ -12,11 +12,10 @@ export interface ValidationIssue {
 	message: string;
 }
 
-/** v1 의 targets[] 구조. 마이그레이션에만 쓴다. */
-interface LegacyTarget {
-	file?: string;
-	heading?: string;
-	level?: number;
+/** 예전 구조. 마이그레이션에만 쓴다. */
+interface LegacyRule {
+	targets?: { file?: string; heading?: string; level?: number }[];
+	defaults?: { tag?: string };
 }
 
 /**
@@ -32,37 +31,25 @@ export function normalizeSettings(raw: unknown): {
 	const src = (raw ?? {}) as Partial<QuickAddButtonSettings>;
 	const prevVersion = Number(src.version) || 1;
 
-	const settings: QuickAddButtonSettings = {
-		version: 3,
-		taskTags:
-			Array.isArray(src.taskTags) && src.taskTags.length
-				? src.taskTags.map((t) => String(t))
-				: [...DEFAULT_SETTINGS.taskTags],
-		rules: [],
-	};
+	const settings: QuickAddButtonSettings = { version: 4, rules: [] };
 
 	const rawRules = Array.isArray(src.rules) ? src.rules : DEFAULT_SETTINGS.rules;
 	const seen = new Set<string>();
 
 	rawRules.forEach((rr, i) => {
-		const r = rr as Partial<RuleDef> & { targets?: LegacyTarget[] };
+		const r = rr as Partial<RuleDef> & LegacyRule;
 		const name = str(r.name, "").trim();
 		if (!name) {
 			issues.push({ index: i, field: "name", message: "규칙 이름이 비었습니다" });
 			return;
 		}
 		if (seen.has(name)) {
-			issues.push({
-				index: i,
-				field: "name",
-				message: `규칙 이름이 중복됩니다: ${name}`,
-			});
+			issues.push({ index: i, field: "name", message: `규칙 이름이 중복됩니다: ${name}` });
 			return;
 		}
 		seen.add(name);
 
 		// v1 → v2: targets[] 중 파일과 헤딩이 다 있는 첫 항목을 쓴다.
-		// @current 처럼 설정 시점에 헤딩을 정할 수 없던 항목은 버린다.
 		let file = str(r.file, "").replace(/^\/+/, "");
 		let heading = str(r.heading, "");
 		let level = Number(r.level) || 0;
@@ -85,6 +72,8 @@ export function normalizeSettings(raw: unknown): {
 			file,
 			heading,
 			level,
+			// v3 → v4: 태그가 폼 기본값에서 버튼 고정값으로 올라왔다.
+			tag: str(r.tag, str(r.defaults?.tag, "#task")).trim() || "#task",
 			defaults: { ...DEFAULT_TASK_DEFAULTS, ...(r.defaults ?? {}) },
 		};
 		if (def.defaults.position !== "top") def.defaults.position = "end";
@@ -121,12 +110,14 @@ export function validateRule(
 
 	if (!name) errs.push("규칙 이름을 입력하세요.");
 	else if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(name))
-		errs.push("규칙 이름은 영문으로 시작하고 영숫자 / - / _ 만 쓸 수 있습니다 (코드블록에서 이 이름으로 부릅니다).");
+		errs.push("규칙 이름은 영문으로 시작하고 영숫자 / - / _ 만 쓸 수 있습니다.");
 	else if (all.some((r, i) => i !== selfIndex && r.name.trim() === name))
 		errs.push(`이미 같은 이름의 규칙이 있습니다: ${name}`);
 
-	if (!def.file.trim()) errs.push("삽입할 파일을 선택하세요.");
-	if (!def.heading.trim()) errs.push("삽입할 헤딩을 선택하세요.");
+	if (!def.file.trim()) errs.push("할일을 넣을 파일을 선택하세요.");
+	if (!def.heading.trim()) errs.push("할일을 넣을 헤딩을 선택하세요.");
+	if (!def.tag.trim()) errs.push("태그를 입력하세요.");
+	else if (!def.tag.trim().startsWith("#")) errs.push("태그는 # 으로 시작해야 합니다.");
 
 	return errs;
 }
