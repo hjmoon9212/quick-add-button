@@ -173,7 +173,6 @@ export class RuleEditModal extends Modal {
 		});
 
 		if (t.file === "@current") {
-			s.setDesc("클릭 시점에 그 노트의 H1~H3 를 펼칩니다.");
 			t.headings = "h1-h3";
 		} else {
 			delete t.headings;
