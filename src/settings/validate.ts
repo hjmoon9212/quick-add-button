@@ -15,6 +15,9 @@ export interface ValidationIssue {
 /** 예전 구조. 마이그레이션에만 쓴다. */
 interface LegacyRule {
 	targets?: { file?: string; heading?: string; level?: number }[];
+	/** v4: 태그가 문자열 하나였다 */
+	tag?: string;
+	/** v3: 태그가 폼 기본값 안에 있었다 */
 	defaults?: { tag?: string };
 }
 
@@ -31,7 +34,7 @@ export function normalizeSettings(raw: unknown): {
 	const src = (raw ?? {}) as Partial<QuickAddButtonSettings>;
 	const prevVersion = Number(src.version) || 1;
 
-	const settings: QuickAddButtonSettings = { version: 4, rules: [] };
+	const settings: QuickAddButtonSettings = { version: 5, rules: [] };
 
 	const rawRules = Array.isArray(src.rules) ? src.rules : DEFAULT_SETTINGS.rules;
 	const seen = new Set<string>();
@@ -72,8 +75,8 @@ export function normalizeSettings(raw: unknown): {
 			file,
 			heading,
 			level,
-			// v3 → v4: 태그가 폼 기본값에서 버튼 고정값으로 올라왔다.
-			tag: str(r.tag, str(r.defaults?.tag, "#task")).trim() || "#task",
+			// v3 → v4 → v5: defaults.tag(문자열) → tag(문자열) → tags(배열)
+			tags: normalizeTags(r),
 			defaults: { ...DEFAULT_TASK_DEFAULTS, ...(r.defaults ?? {}) },
 		};
 		if (def.defaults.position !== "top") def.defaults.position = "end";
@@ -93,6 +96,16 @@ export function normalizeSettings(raw: unknown): {
 	});
 
 	return { settings, issues };
+}
+
+function normalizeTags(r: Partial<RuleDef> & LegacyRule): string[] {
+	const raw = Array.isArray(r.tags) ? r.tags : [r.tag ?? r.defaults?.tag ?? ""];
+	const out: string[] = [];
+	for (const t of raw) {
+		const v = String(t ?? "").trim();
+		if (v && !out.includes(v)) out.push(v);
+	}
+	return out.length ? out : ["#task"];
 }
 
 function str(v: unknown, fallback: string): string {
@@ -116,8 +129,11 @@ export function validateRule(
 
 	if (!def.file.trim()) errs.push("할일을 넣을 파일을 선택하세요.");
 	if (!def.heading.trim()) errs.push("할일을 넣을 헤딩을 선택하세요.");
-	if (!def.tag.trim()) errs.push("태그를 입력하세요.");
-	else if (!def.tag.trim().startsWith("#")) errs.push("태그는 # 으로 시작해야 합니다.");
+	if (!def.tags.length) errs.push("태그를 하나 이상 입력하세요.");
+	else {
+		const bad = def.tags.filter((t) => !t.startsWith("#"));
+		if (bad.length) errs.push(`태그는 # 으로 시작해야 합니다: ${bad.join(", ")}`);
+	}
 
 	return errs;
 }

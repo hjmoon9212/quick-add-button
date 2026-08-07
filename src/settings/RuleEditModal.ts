@@ -126,12 +126,12 @@ export class RuleEditModal extends Modal {
 
 		new Setting(contentEl)
 			.setName("태그")
-			.setDesc("이 버튼으로 넣는 할일에 항상 붙는 태그입니다. 버튼마다 다르게 둘 수 있습니다.")
+			.setDesc("이 버튼이 쓸 태그입니다. 콤마로 여러 개 적으면 폼에서 고를 수 있고, 맨 앞이 기본값입니다.")
 			.addText((t) =>
 				t
-					.setPlaceholder("#task")
-					.setValue(this.draft.tag)
-					.onChange((v) => (this.draft.tag = v))
+					.setPlaceholder("#task, #task/ISSUE")
+					.setValue(this.draft.tags.join(", "))
+					.onChange((v) => (this.draft.tags = splitTags(v)))
 			);
 
 		new Setting(contentEl).setName("폼을 열었을 때 기본 상태").setHeading();
@@ -271,3 +271,10 @@ export class RuleEditModal extends Modal {
 	}
 }
 
+/** 콤마로 적은 태그 목록을 배열로. */
+function splitTags(v: string): string[] {
+	return v
+		.split(",")
+		.map((x) => x.trim())
+		.filter(Boolean);
+}

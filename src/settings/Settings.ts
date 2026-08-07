@@ -23,8 +23,8 @@ export interface RuleDef {
 	heading: string;
 	/** 헤딩 레벨(1~6). 같은 이름의 헤딩이 여러 개일 때 구분한다 */
 	level: number;
-	/** 이 버튼으로 넣는 할일에 붙는 태그. 버튼마다 다르다 */
-	tag: string;
+	/** 이 버튼이 쓰는 태그. 여러 개면 폼에서 고른다. 첫 번째가 기본 */
+	tags: string[];
 	defaults: TaskDefaults;
 }
 
@@ -43,7 +43,7 @@ export const DEFAULT_TASK_DEFAULTS: TaskDefaults = {
 };
 
 export const DEFAULT_SETTINGS: QuickAddButtonSettings = {
-	version: 4,
+	version: 5,
 	rules: [
 		{
 			name: "TempTask",
@@ -52,7 +52,7 @@ export const DEFAULT_SETTINGS: QuickAddButtonSettings = {
 			file: "0. Note/0. Inbox/Temp Tasks.md",
 			heading: "Quick Add",
 			level: 1,
-			tag: "#task",
+			tags: ["#task"],
 			defaults: { ...DEFAULT_TASK_DEFAULTS },
 		},
 	],
@@ -67,7 +67,7 @@ export function blankRule(): RuleDef {
 		file: "",
 		heading: "",
 		level: 0,
-		tag: "#task",
+		tags: ["#task"],
 		defaults: { ...DEFAULT_TASK_DEFAULTS },
 	};
 }

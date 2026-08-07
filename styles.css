@@ -53,51 +53,119 @@
 }
 
 /* ── 할일 폼 ───────────────────────────────────────────── */
-.qab-form .qab-row {
+.qab-dest {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
   align-items: center;
-  margin-top: 6px;
+  gap: 8px;
+  margin: -4px 0 14px;
   font-size: 12px;
+  color: var(--text-muted);
 }
 
-.qab-form .qab-title {
-  flex: 1 1 240px;
-  min-width: 170px;
-  font-size: 13px;
+.qab-dest code {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--background-modifier-hover);
+  font-size: 11px;
+  color: var(--text-accent);
+}
+
+.qab-dest .qab-arrow {
+  opacity: 0.5;
+}
+
+.qab-form input.qab-title {
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+/* 라벨 | 값 2열. 값 열이 한 줄로 맞아 날짜·칩·셀렉트의 왼쪽이 정렬된다. */
+.qab-form .qab-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  align-items: center;
+  gap: 8px 12px;
 }
 
 .qab-form .qab-lbl {
-  opacity: 0.7;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.qab-form .qab-val {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.qab-form .qab-val input[type="date"],
+.qab-form .qab-val select {
+  font-size: 13px;
+}
+
+.qab-form .qab-chips {
+  margin-top: -2px;
+  flex-wrap: wrap;
 }
 
 .qab-form button.qab-chip {
+  padding: 2px 10px;
+  border-radius: 999px;
   font-size: 11px;
-  padding: 1px 9px;
-  border-radius: 10px;
+  line-height: 1.6;
   cursor: pointer;
+  color: var(--text-muted);
+}
+
+.qab-form button.qab-chip:hover {
+  color: var(--text-normal);
+}
+
+.qab-form .qab-opts {
+  gap: 14px;
 }
 
 .qab-form .qab-chk {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 5px;
+  font-size: 12px;
   cursor: pointer;
-  opacity: 0.85;
+  color: var(--text-muted);
+}
+
+.qab-form .qab-chk input {
+  margin: 0;
 }
 
 .qab-form .qab-preview {
-  margin-top: 8px;
-  font-size: 11.5px;
+  margin: 14px 0 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--background-secondary);
   font-family: var(--font-monospace);
-  opacity: 0.6;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
   white-space: pre-wrap;
   word-break: break-all;
 }
 
 .qab-form .qab-actions {
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.qab-form .qab-kbd {
+  font-size: 11px;
+  color: var(--text-faint);
 }
 
 /* ── 설정탭 ────────────────────────────────────────────── */

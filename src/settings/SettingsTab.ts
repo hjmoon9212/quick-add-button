@@ -88,7 +88,7 @@ export class QuickAddButtonSettingTab extends PluginSettingTab {
 		const total = this.plugin.settings.rules.length;
 		const s = new Setting(root)
 			.setName(rule.label || rule.name)
-			.setDesc(`${rule.tag}  →  ${short(rule.file)} › ${rule.heading}`)
+			.setDesc(`${rule.tags.join(" · ")}  →  ${short(rule.file)} › ${rule.heading}`)
 			.setClass("qab-rule");
 
 		s.addToggle((t) =>

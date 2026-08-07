@@ -21,6 +21,7 @@ export class TaskFormModal extends Modal {
 	private busy = false;
 
 	private title!: HTMLInputElement;
+	private tagSel!: HTMLSelectElement;
 	private prioSel!: HTMLSelectElement;
 	private startIn!: HTMLInputElement;
 	private dueIn!: HTMLInputElement;
@@ -40,61 +41,74 @@ export class TaskFormModal extends Modal {
 	onOpen(): void {
 		const { contentEl } = this;
 		contentEl.addClass("qab-modal");
+
 		contentEl.createEl("h3", { text: this.rule.label });
-		contentEl.createEl("div", {
-			cls: "qab-hint",
-			text: `${this.rule.tag}  →  ${targetLabel(this.rule)}`,
-		});
+		const dest = contentEl.createEl("div", { cls: "qab-dest" });
+		dest.createEl("span", { text: "→", cls: "qab-arrow" });
+		dest.createEl("span", { text: targetLabel(this.rule) });
 
 		const d = this.rule.defaults;
 		const form = contentEl.createEl("div", { cls: "qab-form" });
 
-		// 1행 — 내용 · 태그 · 우선순위
-		const row1 = form.createEl("div", { cls: "qab-row" });
-		this.title = row1.createEl("input", { cls: "qab-title" });
+		// 내용 — 한 줄 통째로
+		this.title = form.createEl("input", { cls: "qab-title" });
 		this.title.type = "text";
-		this.title.placeholder = "할 일 내용 (Enter = 추가)";
-		this.prioSel = mkSelect(row1, PRIORITIES, d.priority);
+		this.title.placeholder = "할 일 내용";
 
-		// 2행 — 날짜
-		const row2 = form.createEl("div", { cls: "qab-row" });
-		row2.createEl("span", { text: "🛫 시작", cls: "qab-lbl" });
-		this.startIn = mkDate(row2, resolveDateToken(d.start));
-		row2.createEl("span", { text: "📅 마감", cls: "qab-lbl" });
-		this.dueIn = mkDate(row2, resolveDateToken(d.due));
+		// 라벨 | 입력 2열 그리드. 날짜 칩은 날짜 입력과 같은 열에 놓여 왼쪽이 맞는다.
+		const grid = form.createEl("div", { cls: "qab-grid" });
 
+		const field = (label: string): HTMLElement => {
+			grid.createEl("div", { text: label, cls: "qab-lbl" });
+			return grid.createEl("div", { cls: "qab-val" });
+		};
+
+		this.tagSel = mkSelect(
+			field("태그"),
+			this.rule.tags.map((t) => [t, t] as [string, string]),
+			this.rule.tags[0] ?? "#task"
+		);
+
+		this.startIn = mkDate(field("🛫 시작"), resolveDateToken(d.start));
+		this.dueIn = mkDate(field("📅 마감"), resolveDateToken(d.due));
+
+		const chips = field("");
+		chips.addClass("qab-chips");
 		const today = todayISO();
-		mkChip(row2, "오늘", () => this.setDue(today));
-		mkChip(row2, "내일", () => this.setDue(addDays(today, 1)));
-		mkChip(row2, "+7일", () => this.setDue(addDays(today, 7)));
-		mkChip(row2, "날짜 지우기", () => {
+		mkChip(chips, "오늘", () => this.setDue(today));
+		mkChip(chips, "내일", () => this.setDue(addDays(today, 1)));
+		mkChip(chips, "+7일", () => this.setDue(addDays(today, 7)));
+		mkChip(chips, "지우기", () => {
 			this.startIn.value = "";
 			this.dueIn.value = "";
 			this.refresh();
 		});
 
-		// 3행 — 위치 · 옵션
-		const row3 = form.createEl("div", { cls: "qab-row" });
-		row3.createEl("span", { text: "위치", cls: "qab-lbl" });
+		this.prioSel = mkSelect(field("우선순위"), PRIORITIES, d.priority);
 		this.posSel = mkSelect(
-			row3,
+			field("위치"),
 			[
 				["섹션 끝", "end"],
 				["헤딩 바로 밑", "top"],
 			],
 			d.position
 		);
-		this.idChk = mkChk(row3, "🆔 아이디", d.id);
-		this.createdChk = mkChk(row3, "➕ 생성일", d.created);
+
+		const opts = field("");
+		opts.addClass("qab-opts");
+		this.createdChk = mkChk(opts, "➕ 생성일", d.created);
+		this.idChk = mkChk(opts, "🆔 아이디", d.id);
 
 		this.preview = form.createEl("div", { cls: "qab-preview" });
 
-		const actions = form.createEl("div", { cls: "qab-row qab-actions" });
-		const addBtn = actions.createEl("button", { text: "➕ 추가", cls: "mod-cta" });
+		const actions = form.createEl("div", { cls: "qab-actions" });
+		actions.createEl("span", { text: "Enter 로도 추가됩니다", cls: "qab-kbd" });
+		const addBtn = actions.createEl("button", { text: "추가", cls: "mod-cta" });
 		addBtn.onclick = () => void this.submit();
 
 		for (const el of [
 			this.title,
+			this.tagSel,
 			this.prioSel,
 			this.startIn,
 			this.dueIn,
@@ -121,7 +135,7 @@ export class TaskFormModal extends Modal {
 	}
 
 	private buildLine(id: string): string {
-		const parts = [`- [ ] ${this.rule.tag} ${this.title.value.trim() || "내용"}`];
+		const parts = [`- [ ] ${this.tagSel.value} ${this.title.value.trim() || "내용"}`];
 		if (this.prioSel.value) parts.push(this.prioSel.value);
 		if (this.idChk.checked) parts.push(`🆔 ${id}`);
 		if (this.createdChk.checked) parts.push(`➕ ${todayISO()}`);
