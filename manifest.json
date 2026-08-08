@@ -1,7 +1,7 @@
 {
   "id": "quick-add-button",
   "name": "Quick Add Button",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "minAppVersion": "1.4.0",
   "description": "노트 본문에 코드블록 한 줄로 빠른 추가 버튼을 놓습니다. 버튼은 템플릿으로 새 노트를 만들거나(폴더 생성·백링크·Templater), 지정한 노트의 특정 헤딩 아래에 할일 한 줄을 넣습니다. 규칙은 설정창에서 추가·편집합니다.",
   "author": "Moon",

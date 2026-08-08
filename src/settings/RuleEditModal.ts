@@ -148,11 +148,6 @@ export class RuleEditModal extends Modal {
 		};
 		new Setting(contentEl)
 			.setName("GCal 캘린더")
-			.setDesc(
-				"tasks-gcal-sync 의 라우팅 태그입니다. 붙이면 그 캘린더로 일정이 갑니다. " +
-					"비워 두면 폼에 칸이 안 뜨고 줄에도 안 붙습니다. 콤마로 여러 개 적으면 폼에서 고릅니다. " +
-					"전체를 넣어 두고 폼에서 그때그때 고르는 쓰임이 많아 버튼을 뒀습니다."
-			)
 			.addText((t) => {
 				gcalInput = t;
 				t.setPlaceholder(GCAL_TAGS.slice(0, 3).join(", "))
