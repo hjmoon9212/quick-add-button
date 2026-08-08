@@ -1,4 +1,11 @@
-import { AbstractInputSuggest, App, Modal, Setting, TFile } from "obsidian";
+import {
+	AbstractInputSuggest,
+	App,
+	Modal,
+	Setting,
+	TextComponent,
+	TFile,
+} from "obsidian";
 import { GCAL_TAGS, RuleDef } from "./Settings";
 import { validateRule } from "./validate";
 
@@ -134,19 +141,38 @@ export class RuleEditModal extends Modal {
 					.onChange((v) => (this.draft.tags = splitTags(v)))
 			);
 
+		let gcalInput: TextComponent;
+		const setGcals = (list: string[]): void => {
+			this.draft.gcals = list;
+			gcalInput.setValue(list.join(", "));
+		};
 		new Setting(contentEl)
 			.setName("GCal 캘린더")
 			.setDesc(
 				"tasks-gcal-sync 의 라우팅 태그입니다. 붙이면 그 캘린더로 일정이 갑니다. " +
-					"비워 두면 폼에 칸이 안 뜨고 줄에도 안 붙습니다. 콤마로 여러 개 적으면 폼에서 고릅니다."
+					"비워 두면 폼에 칸이 안 뜨고 줄에도 안 붙습니다. 콤마로 여러 개 적으면 폼에서 고릅니다. " +
+					"전체를 넣어 두고 폼에서 그때그때 고르는 쓰임이 많아 버튼을 뒀습니다."
 			)
 			.addText((t) => {
+				gcalInput = t;
 				t.setPlaceholder(GCAL_TAGS.slice(0, 3).join(", "))
 					.setValue(this.draft.gcals.join(", "))
 					.onChange((v) => (this.draft.gcals = splitTags(v)));
 				// 아는 캘린더는 자동완성으로. 목록에 없는 이름도 그대로 쓸 수 있다.
 				t.inputEl.setAttr("list", "qab-gcal-list");
-			});
+			})
+			.addButton((b) =>
+				b
+					.setButtonText("전체")
+					.setTooltip(`아는 캘린더 ${GCAL_TAGS.length}개를 모두 넣습니다`)
+					.onClick(() => setGcals([...GCAL_TAGS]))
+			)
+			.addButton((b) =>
+				b
+					.setButtonText("지우기")
+					.setTooltip("이 버튼은 캘린더 라우팅을 안 씁니다")
+					.onClick(() => setGcals([]))
+			);
 		const gcalList = contentEl.createEl("datalist");
 		gcalList.id = "qab-gcal-list";
 		for (const g of GCAL_TAGS) gcalList.createEl("option").value = g;
