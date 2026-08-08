@@ -22,6 +22,8 @@ export class TaskFormModal extends Modal {
 
 	private title!: HTMLInputElement;
 	private tagSel!: HTMLSelectElement;
+	/** 규칙에 gcal 태그가 없으면 만들지 않는다 */
+	private gcalSel?: HTMLSelectElement;
 	private prioSel!: HTMLSelectElement;
 	private startIn!: HTMLInputElement;
 	private dueIn!: HTMLInputElement;
@@ -69,6 +71,14 @@ export class TaskFormModal extends Modal {
 			this.rule.tags[0] ?? "#task"
 		);
 
+		// GCal 라우팅 태그. 규칙에 후보가 있을 때만 칸이 뜬다.
+		// "없음"을 끝에 둬서 기본은 첫 후보가 붙고, 필요할 때만 뺄 수 있게 한다.
+		if (this.rule.gcals.length) {
+			const pairs = this.rule.gcals.map((g) => [g, g] as [string, string]);
+			pairs.push(["없음", ""]);
+			this.gcalSel = mkSelect(field("GCal"), pairs, this.rule.gcals[0]);
+		}
+
 		this.startIn = mkDate(field("🛫 시작"), resolveDateToken(d.start));
 		this.dueIn = mkDate(field("📅 마감"), resolveDateToken(d.due));
 
@@ -106,7 +116,7 @@ export class TaskFormModal extends Modal {
 		const addBtn = actions.createEl("button", { text: "추가", cls: "mod-cta" });
 		addBtn.onclick = () => void this.submit();
 
-		for (const el of [
+		const watched: HTMLElement[] = [
 			this.title,
 			this.tagSel,
 			this.prioSel,
@@ -114,7 +124,9 @@ export class TaskFormModal extends Modal {
 			this.dueIn,
 			this.idChk,
 			this.createdChk,
-		]) {
+		];
+		if (this.gcalSel) watched.push(this.gcalSel);
+		for (const el of watched) {
 			el.addEventListener("input", () => this.refresh());
 			el.addEventListener("change", () => this.refresh());
 		}
@@ -135,7 +147,12 @@ export class TaskFormModal extends Modal {
 	}
 
 	private buildLine(id: string): string {
-		const parts = [`- [ ] ${this.tagSel.value} ${this.title.value.trim() || "내용"}`];
+		// 태그 → gcal 라우팅 → 내용 순. tasks-gcal-sync 가 제목에서 #gcal/… 를 떼므로
+		// 이벤트 제목은 내용만 남는다.
+		const gcal = this.gcalSel?.value ? `${this.gcalSel.value} ` : "";
+		const parts = [
+			`- [ ] ${this.tagSel.value} ${gcal}${this.title.value.trim() || "내용"}`,
+		];
 		if (this.prioSel.value) parts.push(this.prioSel.value);
 		if (this.idChk.checked) parts.push(`🆔 ${id}`);
 		if (this.createdChk.checked) parts.push(`➕ ${todayISO()}`);

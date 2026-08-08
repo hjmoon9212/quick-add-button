@@ -1,5 +1,5 @@
 import { AbstractInputSuggest, App, Modal, Setting, TFile } from "obsidian";
-import { RuleDef } from "./Settings";
+import { GCAL_TAGS, RuleDef } from "./Settings";
 import { validateRule } from "./validate";
 
 /** 볼트의 마크다운 파일 경로를 입력하면서 검색한다. */
@@ -133,6 +133,23 @@ export class RuleEditModal extends Modal {
 					.setValue(this.draft.tags.join(", "))
 					.onChange((v) => (this.draft.tags = splitTags(v)))
 			);
+
+		new Setting(contentEl)
+			.setName("GCal 캘린더")
+			.setDesc(
+				"tasks-gcal-sync 의 라우팅 태그입니다. 붙이면 그 캘린더로 일정이 갑니다. " +
+					"비워 두면 폼에 칸이 안 뜨고 줄에도 안 붙습니다. 콤마로 여러 개 적으면 폼에서 고릅니다."
+			)
+			.addText((t) => {
+				t.setPlaceholder(GCAL_TAGS.slice(0, 3).join(", "))
+					.setValue(this.draft.gcals.join(", "))
+					.onChange((v) => (this.draft.gcals = splitTags(v)));
+				// 아는 캘린더는 자동완성으로. 목록에 없는 이름도 그대로 쓸 수 있다.
+				t.inputEl.setAttr("list", "qab-gcal-list");
+			});
+		const gcalList = contentEl.createEl("datalist");
+		gcalList.id = "qab-gcal-list";
+		for (const g of GCAL_TAGS) gcalList.createEl("option").value = g;
 
 		new Setting(contentEl).setName("폼을 열었을 때 기본 상태").setHeading();
 		const d = this.draft.defaults;

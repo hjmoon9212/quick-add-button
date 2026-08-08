@@ -10,6 +10,21 @@ export interface TaskDefaults {
 	position: "end" | "top";
 }
 
+/**
+ * tasks-gcal-sync 의 캘린더 라우팅 태그(`#gcal/<캘린더명>`) 후보.
+ * 그 플러그인이 캘린더 이름을 대소문자 무시하고 대조하므로 표기는 자유롭다.
+ * 여기 없는 캘린더도 규칙에 직접 적으면 그대로 쓰인다 — 목록은 편의용 예시일 뿐.
+ */
+export const GCAL_TAGS = [
+	"#gcal/Work",
+	"#gcal/Personal",
+	"#gcal/Event",
+	"#gcal/Growth",
+	"#gcal/Hobby",
+	"#gcal/Routine",
+	"#gcal/Non-core",
+];
+
 /** 버튼 하나 = 규칙 하나. 넣을 자리와 태그가 버튼에 고정된다. */
 export interface RuleDef {
 	/** 코드블록에서 부르는 이름 */
@@ -25,6 +40,11 @@ export interface RuleDef {
 	level: number;
 	/** 이 버튼이 쓰는 태그. 여러 개면 폼에서 고른다. 첫 번째가 기본 */
 	tags: string[];
+	/**
+	 * 이 버튼이 쓰는 `#gcal/…` 라우팅 태그. 비어 있으면 폼에 칸이 안 뜨고 줄에도 안 붙는다.
+	 * 여러 개면 폼에서 고르고 첫 번째가 기본 — 태그와 같은 규칙이다.
+	 */
+	gcals: string[];
 	defaults: TaskDefaults;
 }
 
@@ -43,7 +63,7 @@ export const DEFAULT_TASK_DEFAULTS: TaskDefaults = {
 };
 
 export const DEFAULT_SETTINGS: QuickAddButtonSettings = {
-	version: 5,
+	version: 6,
 	rules: [
 		{
 			name: "TempTask",
@@ -53,6 +73,7 @@ export const DEFAULT_SETTINGS: QuickAddButtonSettings = {
 			heading: "Quick Add",
 			level: 1,
 			tags: ["#task"],
+			gcals: [],
 			defaults: { ...DEFAULT_TASK_DEFAULTS },
 		},
 	],
@@ -68,6 +89,7 @@ export function blankRule(): RuleDef {
 		heading: "",
 		level: 0,
 		tags: ["#task"],
+		gcals: [],
 		defaults: { ...DEFAULT_TASK_DEFAULTS },
 	};
 }

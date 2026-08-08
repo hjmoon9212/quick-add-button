@@ -34,7 +34,7 @@ export function normalizeSettings(raw: unknown): {
 	const src = (raw ?? {}) as Partial<QuickAddButtonSettings>;
 	const prevVersion = Number(src.version) || 1;
 
-	const settings: QuickAddButtonSettings = { version: 5, rules: [] };
+	const settings: QuickAddButtonSettings = { version: 6, rules: [] };
 
 	const rawRules = Array.isArray(src.rules) ? src.rules : DEFAULT_SETTINGS.rules;
 	const seen = new Set<string>();
@@ -77,6 +77,8 @@ export function normalizeSettings(raw: unknown): {
 			level,
 			// v3 → v4 → v5: defaults.tag(문자열) → tag(문자열) → tags(배열)
 			tags: normalizeTags(r),
+			// v6: #gcal/… 라우팅 태그. 없으면 빈 배열 = 이 버튼은 gcal 칸을 안 쓴다.
+			gcals: cleanList(r.gcals),
 			defaults: { ...DEFAULT_TASK_DEFAULTS, ...(r.defaults ?? {}) },
 		};
 		if (def.defaults.position !== "top") def.defaults.position = "end";
@@ -100,12 +102,19 @@ export function normalizeSettings(raw: unknown): {
 
 function normalizeTags(r: Partial<RuleDef> & LegacyRule): string[] {
 	const raw = Array.isArray(r.tags) ? r.tags : [r.tag ?? r.defaults?.tag ?? ""];
+	const out = cleanList(raw);
+	return out.length ? out : ["#task"];
+}
+
+/** 문자열 배열에서 공백·빈값·중복 제거. 배열이 아니면 빈 배열. */
+function cleanList(raw: unknown): string[] {
+	if (!Array.isArray(raw)) return [];
 	const out: string[] = [];
 	for (const t of raw) {
 		const v = String(t ?? "").trim();
 		if (v && !out.includes(v)) out.push(v);
 	}
-	return out.length ? out : ["#task"];
+	return out;
 }
 
 function str(v: unknown, fallback: string): string {
@@ -134,6 +143,11 @@ export function validateRule(
 		const bad = def.tags.filter((t) => !t.startsWith("#"));
 		if (bad.length) errs.push(`태그는 # 으로 시작해야 합니다: ${bad.join(", ")}`);
 	}
+
+	// gcal 은 비워도 된다(그 버튼은 캘린더 라우팅을 안 쓴다는 뜻).
+	const badGcal = def.gcals.filter((t) => !/^#[^/\s]+\/\S+$/.test(t));
+	if (badGcal.length)
+		errs.push(`GCal 태그는 #gcal/캘린더명 형식이어야 합니다: ${badGcal.join(", ")}`);
 
 	return errs;
 }
