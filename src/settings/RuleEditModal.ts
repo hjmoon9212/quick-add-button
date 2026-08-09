@@ -6,7 +6,7 @@ import {
 	TextComponent,
 	TFile,
 } from "obsidian";
-import { GCAL_TAGS, RuleDef } from "./Settings";
+import { canonicalGcal, GCAL_TAGS, RuleDef } from "./Settings";
 import { validateRule } from "./validate";
 
 /** 볼트의 마크다운 파일 경로를 입력하면서 검색한다. */
@@ -217,6 +217,8 @@ export class RuleEditModal extends Modal {
 					.onClick(() => {
 						this.draft.name = this.draft.name.trim();
 						if (!this.draft.label.trim()) this.draft.label = this.draft.name;
+						// 손으로 적은 캘린더도 아는 이름이면 표준 표기로 맞춰 둔다.
+						this.draft.gcals = this.draft.gcals.map(canonicalGcal);
 						const errs = validateRule(this.draft, this.all, this.selfIndex);
 						errBox.empty();
 						if (errs.length) {

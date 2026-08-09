@@ -1,4 +1,5 @@
 import {
+	canonicalGcal,
 	DEFAULT_SETTINGS,
 	DEFAULT_TASK_DEFAULTS,
 	QuickAddButtonSettings,
@@ -34,7 +35,7 @@ export function normalizeSettings(raw: unknown): {
 	const src = (raw ?? {}) as Partial<QuickAddButtonSettings>;
 	const prevVersion = Number(src.version) || 1;
 
-	const settings: QuickAddButtonSettings = { version: 6, rules: [] };
+	const settings: QuickAddButtonSettings = { version: 7, rules: [] };
 
 	const rawRules = Array.isArray(src.rules) ? src.rules : DEFAULT_SETTINGS.rules;
 	const seen = new Set<string>();
@@ -78,7 +79,8 @@ export function normalizeSettings(raw: unknown): {
 			// v3 → v4 → v5: defaults.tag(문자열) → tag(문자열) → tags(배열)
 			tags: normalizeTags(r),
 			// v6: #gcal/… 라우팅 태그. 없으면 빈 배열 = 이 버튼은 gcal 칸을 안 쓴다.
-			gcals: cleanList(r.gcals),
+			// v7: 아는 캘린더는 볼트 표준 표기(소문자)로 되돌린다.
+			gcals: cleanList(r.gcals).map(canonicalGcal),
 			defaults: { ...DEFAULT_TASK_DEFAULTS, ...(r.defaults ?? {}) },
 		};
 		if (def.defaults.position !== "top") def.defaults.position = "end";
