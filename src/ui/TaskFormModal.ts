@@ -1,5 +1,5 @@
 import { App, Modal, Notice } from "obsidian";
-import { QuickAddButtonSettings, RuleDef } from "../settings/Settings";
+import { RuleDef } from "../settings/Settings";
 import { appendTask, targetLabel } from "../core/appendTask";
 import { addDays, resolveDateToken, todayISO } from "../core/dates";
 import { newTaskId } from "../core/taskId";
@@ -32,11 +32,7 @@ export class TaskFormModal extends Modal {
 	private createdChk!: HTMLInputElement;
 	private preview!: HTMLElement;
 
-	constructor(
-		app: App,
-		private rule: RuleDef,
-		private settings: QuickAddButtonSettings
-	) {
+	constructor(app: App, private rule: RuleDef) {
 		super(app);
 	}
 
@@ -98,7 +94,7 @@ export class TaskFormModal extends Modal {
 		this.posSel = mkSelect(
 			field("위치"),
 			[
-				["섹션 끝", "end"],
+				["목록 끝", "end"],
 				["헤딩 바로 밑", "top"],
 			],
 			d.position

@@ -51,7 +51,7 @@ export default class QuickAddButtonPlugin extends Plugin {
 	}
 
 	refreshAll(): void {
-		for (const draw of this.live) {
+		for (const draw of [...this.live]) {
 			try {
 				draw();
 			} catch {

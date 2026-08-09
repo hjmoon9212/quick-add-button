@@ -173,13 +173,14 @@
   padding: 8px 0;
 }
 
-.qab-settings .qab-target-row .setting-item-control {
-  flex-wrap: wrap;
-  gap: 6px;
+/* 자리를 잃은 규칙 — 눌러 보기 전에 보이게 */
+.qab-settings .qab-rule-broken .setting-item-description {
+  color: var(--text-error);
 }
 
-.qab-settings .qab-hidden {
-  display: none;
+/* 파일 경로는 길다. 규칙 편집 모달에서 입력칸을 폭 끝까지 늘린다 */
+.qab-modal .qab-wide {
+  width: 100%;
 }
 
 .qab-io {

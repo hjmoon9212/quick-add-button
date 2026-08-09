@@ -1,12 +1,13 @@
 {
   "name": "quick-add-button",
-  "version": "0.6.3",
+  "version": "0.7.0",
   "description": "Buttons that add Obsidian Tasks lines under a chosen heading of a chosen note, configured from the settings tab.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-    "version-bump": "node version-bump.mjs"
+    "version-bump": "node version-bump.mjs",
+    "test": "esbuild tests/insert.test.ts --bundle --platform=node --format=cjs --outfile=.test.cjs && node .test.cjs"
   },
   "keywords": [
     "obsidian",

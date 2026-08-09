@@ -48,7 +48,7 @@ export function renderBlock(
 }
 
 export function openForm(plugin: QuickAddButtonPlugin, rule: RuleDef): void {
-	new TaskFormModal(plugin.app, rule, plugin.settings).open();
+	new TaskFormModal(plugin.app, rule).open();
 }
 
 function renderError(

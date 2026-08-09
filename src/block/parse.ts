@@ -67,7 +67,7 @@ export function resolveButtons(
 			.map((rule) => ({ ok: true as const, rule }));
 	}
 
-	return spec.include
+	return [...new Set(spec.include)]
 		.filter((name) => !spec.exclude.includes(name))
 		.map((name) => {
 			const found = settings.rules.find((r) => r.name === name);

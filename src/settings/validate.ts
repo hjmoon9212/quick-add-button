@@ -4,6 +4,7 @@ import {
 	DEFAULT_TASK_DEFAULTS,
 	QuickAddButtonSettings,
 	RuleDef,
+	TaskDefaults,
 } from "./Settings";
 
 export interface ValidationIssue {
@@ -81,9 +82,8 @@ export function normalizeSettings(raw: unknown): {
 			// v6: #gcal/… 라우팅 태그. 없으면 빈 배열 = 이 버튼은 gcal 칸을 안 쓴다.
 			// v7: 아는 캘린더는 볼트 표준 표기(소문자)로 되돌린다.
 			gcals: cleanList(r.gcals).map(canonicalGcal),
-			defaults: { ...DEFAULT_TASK_DEFAULTS, ...(r.defaults ?? {}) },
+			defaults: normalizeDefaults(r.defaults),
 		};
-		if (def.defaults.position !== "top") def.defaults.position = "end";
 		// v3 부터 🆔 기본값이 켜짐이다. 그 전 설정은 기본값이 꺼짐이던 시절에
 		// 저장된 것이므로, 사용자가 끈 것과 구분되지 않아 한 번만 올려준다.
 		if (prevVersion < 3) def.defaults.id = true;
@@ -100,6 +100,23 @@ export function normalizeSettings(raw: unknown): {
 	});
 
 	return { settings, issues };
+}
+
+/**
+ * 아는 키만 골라 담는다. 스프레드로 통째로 받으면 v3 때의 `defaults.tag` 같은
+ * 죽은 키가 data.json 에 영원히 남는다 — 실제로 남아 있었다.
+ */
+function normalizeDefaults(raw: unknown): TaskDefaults {
+	const d = (raw ?? {}) as Partial<TaskDefaults>;
+	const D = DEFAULT_TASK_DEFAULTS;
+	return {
+		due: str(d.due, D.due),
+		start: str(d.start, D.start),
+		priority: str(d.priority, D.priority),
+		created: typeof d.created === "boolean" ? d.created : D.created,
+		id: typeof d.id === "boolean" ? d.id : D.id,
+		position: d.position === "top" ? "top" : "end",
+	};
 }
 
 function normalizeTags(r: Partial<RuleDef> & LegacyRule): string[] {

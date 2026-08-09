@@ -1,5 +1,7 @@
-import { App, Notice, PluginSettingTab, Setting } from "obsidian";
+import { App, Notice, PluginSettingTab, Setting, TFile } from "obsidian";
 import type QuickAddButtonPlugin from "../main";
+import { baseName } from "../core/appendTask";
+import { hasHeading, headingsOf } from "../core/headings";
 import { RuleDef, blankRule } from "./Settings";
 import { RuleEditModal } from "./RuleEditModal";
 import { normalizeSettings } from "./validate";
@@ -86,10 +88,18 @@ export class QuickAddButtonSettingTab extends PluginSettingTab {
 
 	private renderRule(root: HTMLElement, rule: RuleDef, i: number): void {
 		const total = this.plugin.settings.rules.length;
+		const where = `${baseName(rule.file)} › ${rule.heading}`;
+		const problem = this.ruleProblem(rule);
+
 		const s = new Setting(root)
 			.setName(rule.label || rule.name)
-			.setDesc(`${rule.tags.join(" · ")}  →  ${short(rule.file)} › ${rule.heading}`)
+			.setDesc(
+				problem
+					? `⚠️ ${problem} — ${rule.tags.join(" · ")}  →  ${where}`
+					: `${rule.tags.join(" · ")}  →  ${where}`
+			)
 			.setClass("qab-rule");
+		if (problem) s.settingEl.addClass("qab-rule-broken");
 
 		s.addToggle((t) =>
 			t
@@ -145,6 +155,23 @@ export class QuickAddButtonSettingTab extends PluginSettingTab {
 		);
 	}
 
+	/**
+	 * 규칙이 가리키는 자리가 아직 있는지. 없으면 그 이유를 돌려준다.
+	 *
+	 * 저장을 막지는 않는다 — 파일을 나중에 만들 수도 있고, 다른 볼트에서 가져온
+	 * 설정일 수도 있다. 다만 눌러 보기 전에 알려는 준다. 지금은 폼을 다 채우고
+	 * 추가를 누른 뒤에야 Notice 가 뜬다.
+	 */
+	private ruleProblem(rule: RuleDef): string {
+		if (!rule.file || !rule.heading) return "";
+		const file = this.app.vault.getAbstractFileByPath(rule.file);
+		if (!(file instanceof TFile)) return "파일이 없습니다";
+		if (!hasHeading(headingsOf(this.app, file), rule.heading, rule.level)) {
+			return "헤딩이 없습니다";
+		}
+		return "";
+	}
+
 	private async move(i: number, delta: number): Promise<void> {
 		const rules = this.plugin.settings.rules;
 		const j = i + delta;
@@ -193,9 +220,4 @@ export class QuickAddButtonSettingTab extends PluginSettingTab {
 					})
 			);
 	}
-}
-
-function short(path: string): string {
-	const f = path.slice(path.lastIndexOf("/") + 1);
-	return f.endsWith(".md") ? f.slice(0, -3) : f;
 }

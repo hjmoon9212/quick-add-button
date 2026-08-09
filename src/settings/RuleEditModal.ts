@@ -7,6 +7,7 @@ import {
 	TFile,
 } from "obsidian";
 import { canonicalGcal, GCAL_TAGS, RuleDef } from "./Settings";
+import { headingsOf } from "../core/headings";
 import { validateRule } from "./validate";
 
 /** 볼트의 마크다운 파일 경로를 입력하면서 검색한다. */
@@ -35,11 +36,6 @@ class FileSuggest extends AbstractInputSuggest<string> {
 		this.onPick(value);
 		this.close();
 	}
-}
-
-interface HeadingOption {
-	heading: string;
-	level: number;
 }
 
 /** 규칙 하나(= 버튼 하나)를 편집한다. */
@@ -189,10 +185,10 @@ export class RuleEditModal extends Modal {
 		);
 		new Setting(contentEl)
 			.setName("헤딩 아래 어느 위치")
-			.setDesc("섹션 끝 = 다음 헤딩 직전(시간순으로 쌓임) · 헤딩 바로 밑 = 최신이 위로.")
+			.setDesc("목록 끝 = 이 헤딩 아래 마지막 할일 뒤(시간순으로 쌓임) · 헤딩 바로 밑 = 최신이 위로.")
 			.addDropdown((dd) =>
 				dd
-					.addOption("end", "섹션 끝")
+					.addOption("end", "목록 끝")
 					.addOption("top", "헤딩 바로 밑")
 					.setValue(d.position)
 					.onChange((v) => (d.position = v as "end" | "top"))
@@ -248,7 +244,7 @@ export class RuleEditModal extends Modal {
 			return;
 		}
 
-		const options = this.headingsOf(file);
+		const options = headingsOf(this.app, file);
 		if (!options.length) {
 			this.setHeadingState("이 노트에는 헤딩이 없습니다. 헤딩을 만든 뒤 다시 고르세요.", true);
 			return;
@@ -283,27 +279,6 @@ export class RuleEditModal extends Modal {
 			this.draft.heading = "";
 			this.draft.level = 0;
 		}
-	}
-
-	/** 대상 파일의 헤딩. 삽입 로직과 같은 규칙(코드펜스 무시)으로 읽는다. */
-	private headingsOf(file: TFile): HeadingOption[] {
-		const cache = this.app.metadataCache.getFileCache(file);
-		if (!cache) return [];
-
-		const fences = (cache.sections ?? [])
-			.filter((s) => s.type === "code")
-			.map((s) => [s.position.start.line, s.position.end.line] as const);
-
-		const fromCache = (cache.headings ?? [])
-			.filter(
-				(h) =>
-					!fences.some(
-						([a, b]) => h.position.start.line >= a && h.position.start.line <= b
-					)
-			)
-			.map((h) => ({ heading: h.heading, level: h.level }));
-
-		return fromCache.length ? fromCache : [];
 	}
 
 	onClose(): void {
