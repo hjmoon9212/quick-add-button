@@ -201,6 +201,14 @@ export class RuleEditModal extends Modal {
 			.setName("🆔 아이디")
 			.setDesc("고유 6자리를 붙입니다. 조상 트리 뷰와 캘린더 동기화가 이걸로 할일을 추적합니다.")
 			.addToggle((t) => t.setValue(d.id).onChange((v) => (d.id = v)));
+		new Setting(contentEl)
+			.setName("↪ 추가 후 그 노트로 이동")
+			.setDesc(
+				"넣은 줄로 커서를 옮깁니다. 켜면 추가한 뒤 폼이 닫혀서 연속 추가는 안 됩니다."
+			)
+			.addToggle((t) =>
+				t.setValue(d.openAfter).onChange((v) => (d.openAfter = v))
+			);
 
 		const errBox = contentEl.createEl("div", { cls: "qab-errors" });
 

@@ -6,8 +6,13 @@ export interface TaskDefaults {
 	priority: string;
 	created: boolean;
 	id: boolean;
-	/** 헤딩 아래 어디에 넣을지. "end" = 섹션 끝, "top" = 헤딩 바로 밑 */
+	/** 헤딩 아래 어디에 넣을지. "end" = 목록 끝, "top" = 헤딩 바로 밑 */
 	position: "end" | "top";
+	/**
+	 * 추가한 뒤 그 노트로 이동해 넣은 줄에 커서를 둘지. 켜면 폼이 닫힌다 —
+	 * 이동과 "폼 열어 두고 연속 추가"는 같이 갈 수 없다.
+	 */
+	openAfter: boolean;
 }
 
 /**
@@ -71,10 +76,11 @@ export const DEFAULT_TASK_DEFAULTS: TaskDefaults = {
 	created: true,
 	id: true,
 	position: "end",
+	openAfter: false,
 };
 
 export const DEFAULT_SETTINGS: QuickAddButtonSettings = {
-	version: 7,
+	version: 8,
 	rules: [
 		{
 			name: "TempTask",

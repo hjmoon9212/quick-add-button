@@ -36,7 +36,7 @@ export function normalizeSettings(raw: unknown): {
 	const src = (raw ?? {}) as Partial<QuickAddButtonSettings>;
 	const prevVersion = Number(src.version) || 1;
 
-	const settings: QuickAddButtonSettings = { version: 7, rules: [] };
+	const settings: QuickAddButtonSettings = { version: 8, rules: [] };
 
 	const rawRules = Array.isArray(src.rules) ? src.rules : DEFAULT_SETTINGS.rules;
 	const seen = new Set<string>();
@@ -116,6 +116,7 @@ function normalizeDefaults(raw: unknown): TaskDefaults {
 		created: typeof d.created === "boolean" ? d.created : D.created,
 		id: typeof d.id === "boolean" ? d.id : D.id,
 		position: d.position === "top" ? "top" : "end",
+		openAfter: typeof d.openAfter === "boolean" ? d.openAfter : D.openAfter,
 	};
 }
 

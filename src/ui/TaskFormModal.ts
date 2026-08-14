@@ -1,6 +1,6 @@
 import { App, Modal, Notice } from "obsidian";
 import { RuleDef } from "../settings/Settings";
-import { appendTask, targetLabel } from "../core/appendTask";
+import { appendTask, revealInserted, targetLabel } from "../core/appendTask";
 import { addDays, resolveDateToken, todayISO } from "../core/dates";
 import { newTaskId } from "../core/taskId";
 
@@ -30,6 +30,7 @@ export class TaskFormModal extends Modal {
 	private posSel!: HTMLSelectElement;
 	private idChk!: HTMLInputElement;
 	private createdChk!: HTMLInputElement;
+	private openChk!: HTMLInputElement;
 	private preview!: HTMLElement;
 
 	constructor(app: App, private rule: RuleDef) {
@@ -104,6 +105,11 @@ export class TaskFormModal extends Modal {
 		opts.addClass("qab-opts");
 		this.createdChk = mkChk(opts, "➕ 생성일", d.created);
 		this.idChk = mkChk(opts, "🆔 아이디", d.id);
+		this.openChk = mkChk(opts, "↪ 추가 후 이동", d.openAfter);
+		this.openChk.parentElement?.setAttr(
+			"title",
+			"넣은 줄로 이동합니다. 켜면 추가한 뒤 폼이 닫힙니다."
+		);
 
 		this.preview = form.createEl("div", { cls: "qab-preview" });
 
@@ -181,19 +187,26 @@ export class TaskFormModal extends Modal {
 		this.busy = true;
 		try {
 			const id = this.idChk.checked ? await newTaskId(this.app) : "";
-			if (
-				await appendTask(
-					this.app,
-					this.rule,
-					this.buildLine(id),
-					this.posSel.value === "top"
-				)
-			) {
-				// 연달아 넣는 경우가 많으므로 닫지 않고 내용만 비운다.
-				this.title.value = "";
-				this.refresh();
-				this.title.focus();
+			const at = await appendTask(
+				this.app,
+				this.rule,
+				this.buildLine(id),
+				this.posSel.value === "top"
+			);
+			if (!at) return;
+
+			if (this.openChk.checked) {
+				// 이동과 "폼 열어 두고 연속 추가"는 같이 갈 수 없다. 폼이 노트를
+				// 가리므로 먼저 닫고 넣은 줄로 간다.
+				this.close();
+				await revealInserted(this.app, at);
+				return;
 			}
+
+			// 연달아 넣는 경우가 많으므로 닫지 않고 내용만 비운다.
+			this.title.value = "";
+			this.refresh();
+			this.title.focus();
 		} finally {
 			this.busy = false;
 		}
