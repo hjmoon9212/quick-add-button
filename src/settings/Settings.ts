@@ -9,8 +9,7 @@ export interface TaskDefaults {
 	/** 헤딩 아래 어디에 넣을지. "end" = 목록 끝, "top" = 헤딩 바로 밑 */
 	position: "end" | "top";
 	/**
-	 * 추가한 뒤 그 노트로 이동해 넣은 줄에 커서를 둘지. 켜면 폼이 닫힌다 —
-	 * 이동과 "폼 열어 두고 연속 추가"는 같이 갈 수 없다.
+	 * 추가한 뒤 뒤에 있는 노트를 넣은 줄로 옮길지. 폼은 그대로 열려 있다.
 	 */
 	openAfter: boolean;
 }

@@ -49,7 +49,11 @@ export async function appendTask(
 }
 
 /**
- * 넣은 줄로 이동한다. 지금 보고 있는 탭을 쓴다 — "이동"이니까.
+ * 넣은 줄이 보이게 노트를 띄운다. 지금 보고 있는 탭을 쓴다 — "이동"이니까.
+ *
+ * **active: false 인 게 중요하다.** 폼을 열어 둔 채 부르므로, 탭이 포커스를
+ * 가져가면 입력칸에서 커서가 빠져 연속 추가가 끊긴다. 스크롤은 active 와
+ * 무관하게 eState 로 걸린다.
  *
  * 이미 열려 있는 탭을 찾아 가는 방법도 있지만, 백그라운드 탭은 deferred 라
  * view.file 이 비어 있어 믿을 수 없다. 현재 탭에 여는 쪽이 예측 가능하다.
@@ -57,5 +61,5 @@ export async function appendTask(
 export async function revealInserted(app: App, at: Inserted): Promise<void> {
 	await app.workspace
 		.getLeaf(false)
-		.openFile(at.file, { eState: { line: at.index }, active: true });
+		.openFile(at.file, { eState: { line: at.index }, active: false });
 }

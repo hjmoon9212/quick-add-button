@@ -108,7 +108,7 @@ export class TaskFormModal extends Modal {
 		this.openChk = mkChk(opts, "↪ 추가 후 이동", d.openAfter);
 		this.openChk.parentElement?.setAttr(
 			"title",
-			"넣은 줄로 이동합니다. 켜면 추가한 뒤 폼이 닫힙니다."
+			"뒤에 있는 노트를 넣은 줄로 옮깁니다. 폼은 닫히지 않습니다."
 		);
 
 		this.preview = form.createEl("div", { cls: "qab-preview" });
@@ -195,17 +195,14 @@ export class TaskFormModal extends Modal {
 			);
 			if (!at) return;
 
-			if (this.openChk.checked) {
-				// 이동과 "폼 열어 두고 연속 추가"는 같이 갈 수 없다. 폼이 노트를
-				// 가리므로 먼저 닫고 넣은 줄로 간다.
-				this.close();
-				await revealInserted(this.app, at);
-				return;
-			}
-
 			// 연달아 넣는 경우가 많으므로 닫지 않고 내용만 비운다.
 			this.title.value = "";
 			this.refresh();
+
+			// 폼은 그대로 두고 뒤에 있는 노트만 그 줄로 옮긴다. 폼을 닫으면
+			// 바로 그 자리가 보인다.
+			if (this.openChk.checked) await revealInserted(this.app, at);
+
 			this.title.focus();
 		} finally {
 			this.busy = false;
