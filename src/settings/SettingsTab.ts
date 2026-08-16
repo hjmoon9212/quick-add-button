@@ -5,6 +5,7 @@ import { hasHeading, headingsOf } from "../core/headings";
 import { isDynamicTarget } from "../core/paths";
 import { RuleDef, blankRule } from "./Settings";
 import { RuleEditModal } from "./RuleEditModal";
+import { ConfirmModal } from "../ui/ConfirmModal";
 import { normalizeSettings } from "./validate";
 
 /**
@@ -151,11 +152,18 @@ export class QuickAddButtonSettingTab extends PluginSettingTab {
 			b
 				.setIcon("trash")
 				.setTooltip("삭제")
-				.onClick(async () => {
-					this.plugin.settings.rules.splice(i, 1);
-					await this.plugin.saveSettings();
-					this.display();
-				})
+				.onClick(() =>
+					new ConfirmModal(this.app, {
+						title: "규칙 삭제",
+						body: `「${rule.label || rule.name}」 규칙을 삭제합니다. 되돌릴 수 없습니다 — 아래 「JSON 내보내기」로 백업해 둘 수 있습니다.`,
+						cta: "삭제",
+						onConfirm: async () => {
+							this.plugin.settings.rules.splice(i, 1);
+							await this.plugin.saveSettings();
+							this.display();
+						},
+					}).open()
+				)
 		);
 	}
 
@@ -207,7 +215,7 @@ export class QuickAddButtonSettingTab extends PluginSettingTab {
 				b
 					.setButtonText("이 JSON 적용")
 					.setWarning()
-					.onClick(async () => {
+					.onClick(() => {
 						let parsed: unknown;
 						try {
 							parsed = JSON.parse(ta.value);
@@ -215,15 +223,23 @@ export class QuickAddButtonSettingTab extends PluginSettingTab {
 							new Notice(`JSON 파싱 실패: ${e instanceof Error ? e.message : e}`);
 							return;
 						}
+						// 규칙 하나 지우는 것보다 이쪽이 더 크게 잃는다 — 전부 갈아엎는다.
 						const { settings, issues } = normalizeSettings(parsed);
-						this.plugin.settings = settings;
-						await this.plugin.saveSettings();
-						this.display();
-						new Notice(
-							issues.length
-								? `적용됨 (경고 ${issues.length}건: ${issues[0].message})`
-								: "적용됨"
-						);
+						new ConfirmModal(this.app, {
+							title: "설정 덮어쓰기",
+							body: `지금 규칙 ${this.plugin.settings.rules.length}개를 지우고 ${settings.rules.length}개로 바꿉니다. 되돌릴 수 없습니다.`,
+							cta: "적용",
+							onConfirm: async () => {
+								this.plugin.settings = settings;
+								await this.plugin.saveSettings();
+								this.display();
+								new Notice(
+									issues.length
+										? `적용됨 (경고 ${issues.length}건: ${issues[0].message})`
+										: "적용됨"
+								);
+							},
+						}).open();
 					})
 			);
 	}

@@ -1,4 +1,4 @@
-import { App, MarkdownView, Notice, TFile } from "obsidian";
+import { App, MarkdownView, Notice, TFile, WorkspaceLeaf } from "obsidian";
 import { RuleDef } from "../settings/Settings";
 import { insertTaskLine } from "./insertTaskLine";
 import { CURRENT, isDynamicTarget } from "./paths";
@@ -70,31 +70,67 @@ export async function appendTask(
 }
 
 /**
- * 넣은 줄이 보이게 노트를 띄운다. 지금 보고 있는 탭을 쓴다 — "이동"이니까.
+ * 넣은 줄이 보이게 노트를 띄운다. 세 갈래다 — **이미 있는 것을 먼저 쓴다.**
  *
- * **active: false 인 게 중요하다.** 폼을 열어 둔 채 부르므로, 탭이 포커스를
- * 가져가면 입력칸에서 커서가 빠져 연속 추가가 끊긴다. 스크롤은 active 와
- * 무관하게 eState 로 걸린다.
+ *   1. 지금 보고 있는 노트   → 다시 열지 않고 스크롤만
+ *   2. 다른 탭에 열려 있음   → 그 탭을 앞으로 (새 탭을 만들지 않는다)
+ *   3. 어디에도 없음         → 지금 탭에 연다
  *
- * 이미 열려 있는 탭을 찾아 가는 방법도 있지만, 백그라운드 탭은 deferred 라
- * view.file 이 비어 있어 믿을 수 없다. 현재 탭에 여는 쪽이 예측 가능하다.
- *
- * 단 **그 노트를 이미 보고 있으면 다시 열지 않고 스크롤만 한다.** 버튼 블록과
- * 넣을 헤딩이 같은 노트에 있는 경우(Temp Tasks·Tasks Hub 가 그렇다)가 흔한데,
+ * 1이 필요한 이유: 버튼 블록과 넣을 헤딩이 같은 노트에 있는 경우가 흔한데,
  * 여기서 파일을 다시 열면 편집 중이던 상태가 통째로 튄다. 그렇다고 아무것도
  * 안 하면 헤딩이 화면 밖일 때 "이동"이 안 되는 것처럼 보인다 — 그래서 스크롤만.
  *
- * scrollIntoView 는 포커스를 건드리지 않으므로 폼 입력칸의 커서는 그대로 남는다.
+ * **포커스는 어느 갈래에서도 옮기지 않는다.** 폼을 열어 둔 채 부르므로 탭이
+ * 포커스를 가져가면 입력칸에서 커서가 빠져 연속 추가가 끊긴다. scrollIntoView 는
+ * 포커스를 안 건드리고, openFile 과 setActiveLeaf 에는 각각 active·focus 를
+ * 꺼서 넘긴다.
  */
 export async function revealInserted(app: App, at: Inserted): Promise<void> {
-	const view = app.workspace.getActiveViewOfType(MarkdownView);
-	if (view?.file?.path === at.file.path) {
-		const pos = { line: at.index, ch: 0 };
-		view.editor.scrollIntoView({ from: pos, to: pos }, true);
+	const active = app.workspace.getActiveViewOfType(MarkdownView);
+	if (active?.file?.path === at.file.path) {
+		scrollTo(active, at.index);
+		return;
+	}
+
+	const leaf = findLeafFor(app, at.file.path);
+	if (leaf) {
+		// 이미 그 노트를 들고 있는 탭이다. 백그라운드 탭은 deferred 라 editor 가
+		// 아직 없을 수 있으므로, openFile 로 로드시키고 eState 로 줄을 맞춘다.
+		await leaf.openFile(at.file, { eState: { line: at.index }, active: false });
+		app.workspace.setActiveLeaf(leaf, { focus: false });
 		return;
 	}
 
 	await app.workspace
 		.getLeaf(false)
 		.openFile(at.file, { eState: { line: at.index }, active: false });
+}
+
+function scrollTo(view: MarkdownView, line: number): void {
+	const pos = { line, ch: 0 };
+	view.editor.scrollIntoView({ from: pos, to: pos }, true);
+}
+
+/**
+ * 그 노트를 이미 열어 둔 탭. 없으면 null.
+ *
+ * `leaf.view.file` 은 못 쓴다 — 백그라운드 탭은 deferred 라 뷰가 아직 안 만들어져
+ * 있다. 뷰를 건드리지 않는 getViewState() 는 그 상태에서도 경로를 들고 있다.
+ *
+ * 사이드바에 같은 노트가 떠 있는 경우가 있어 **본문 영역을 먼저** 고른다.
+ */
+function findLeafFor(app: App, path: string): WorkspaceLeaf | null {
+	let main: WorkspaceLeaf | null = null;
+	let other: WorkspaceLeaf | null = null;
+
+	app.workspace.iterateAllLeaves((leaf) => {
+		const state = leaf.getViewState();
+		if (state.type !== "markdown") return;
+		if ((state.state as { file?: string } | undefined)?.file !== path) return;
+
+		if (leaf.getRoot() === app.workspace.rootSplit) main ??= leaf;
+		else other ??= leaf;
+	});
+
+	return main ?? other;
 }
