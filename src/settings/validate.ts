@@ -36,7 +36,7 @@ export function normalizeSettings(raw: unknown): {
 	const src = (raw ?? {}) as Partial<QuickAddButtonSettings>;
 	const prevVersion = Number(src.version) || 1;
 
-	const settings: QuickAddButtonSettings = { version: 8, rules: [] };
+	const settings: QuickAddButtonSettings = { version: 9, rules: [] };
 
 	const rawRules = Array.isArray(src.rules) ? src.rules : DEFAULT_SETTINGS.rules;
 	const seen = new Set<string>();
@@ -74,6 +74,9 @@ export function normalizeSettings(raw: unknown): {
 			name,
 			label: str(r.label, name),
 			enabled: r.enabled !== false,
+			// v9: 리본 목록에 넣을지. 없으면 켜짐 — v8 까지는 켜져 있으면 전부
+			// 리본에 나왔으므로, 기본을 꺼짐으로 두면 갱신하자마자 목록이 빈다.
+			ribbon: r.ribbon !== false,
 			file,
 			heading,
 			level,

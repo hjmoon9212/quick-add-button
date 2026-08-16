@@ -47,6 +47,15 @@ export interface RuleDef {
 	/** 버튼에 찍히는 글자 */
 	label: string;
 	enabled: boolean;
+	/**
+	 * 리본 아이콘을 눌렀을 때 나오는 목록에 이 버튼을 넣을지.
+	 *
+	 * 켠 규칙이 늘어나면 리본 목록이 길어져 자주 쓰는 것을 고르기 어려워진다.
+	 * 노트에 코드블록으로 박아 둔 버튼은 그 노트에서 누르면 되므로 리본까지
+	 * 차지할 이유가 없다. `enabled` 와 별개다 — 여기서 빼도 코드블록과 커맨드로는
+	 * 그대로 쓴다.
+	 */
+	ribbon: boolean;
 	/** 삽입할 노트의 볼트 경로 */
 	file: string;
 	/** 삽입할 헤딩 텍스트 */
@@ -79,12 +88,13 @@ export const DEFAULT_TASK_DEFAULTS: TaskDefaults = {
 };
 
 export const DEFAULT_SETTINGS: QuickAddButtonSettings = {
-	version: 8,
+	version: 9,
 	rules: [
 		{
 			name: "TempTask",
 			label: "⚡ 임시 할일",
 			enabled: true,
+			ribbon: true,
 			file: "0. Note/0. Inbox/Temp Tasks.md",
 			heading: "Quick Add",
 			level: 1,
@@ -101,6 +111,7 @@ export function blankRule(): RuleDef {
 		name: "",
 		label: "",
 		enabled: true,
+		ribbon: true,
 		file: "",
 		heading: "",
 		level: 0,

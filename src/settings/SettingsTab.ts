@@ -91,13 +91,16 @@ export class QuickAddButtonSettingTab extends PluginSettingTab {
 		const total = this.plugin.settings.rules.length;
 		const where = targetLabel(rule);
 		const problem = this.ruleProblem(rule);
+		// 리본에서 뺀 규칙은 목록만 봐서는 알 수 없다 — 편집을 열어야 보이면
+		// 왜 리본에 안 나오는지 찾다가 시간을 버린다.
+		const off = rule.ribbon ? "" : "  ·  리본 제외";
 
 		const s = new Setting(root)
 			.setName(rule.label || rule.name)
 			.setDesc(
 				problem
-					? `⚠️ ${problem} — ${rule.tags.join(" · ")}  →  ${where}`
-					: `${rule.tags.join(" · ")}  →  ${where}`
+					? `⚠️ ${problem} — ${rule.tags.join(" · ")}  →  ${where}${off}`
+					: `${rule.tags.join(" · ")}  →  ${where}${off}`
 			)
 			.setClass("qab-rule");
 		if (problem) s.settingEl.addClass("qab-rule-broken");

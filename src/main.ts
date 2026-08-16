@@ -116,9 +116,16 @@ export default class QuickAddButtonPlugin extends Plugin {
 	 * 쓴다 — 플러그인이 따로 설정을 둘 이유가 없다.
 	 */
 	private openPicker(): void {
-		const rules = this.settings.rules.filter((r) => r.enabled);
+		const enabled = this.settings.rules.filter((r) => r.enabled);
+		const rules = enabled.filter((r) => r.ribbon);
 		if (!rules.length) {
-			new Notice("켜져 있는 버튼이 없습니다. 설정에서 규칙을 추가하세요.");
+			// 규칙은 있는데 아무도 리본에 안 들어간 경우와 규칙 자체가 없는 경우는
+			// 고쳐야 할 곳이 다르다. 같은 문구로 뭉뚱그리면 설정에서 헤맨다.
+			new Notice(
+				enabled.length
+					? "리본 목록에 넣도록 체크된 버튼이 없습니다. 규칙 편집에서 「리본 목록에 넣기」를 켜세요."
+					: "켜져 있는 버튼이 없습니다. 설정에서 규칙을 추가하세요."
+			);
 			this.openSettings();
 			return;
 		}

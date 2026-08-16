@@ -96,6 +96,15 @@ export class RuleEditModal extends Modal {
 					.onChange((v) => (this.draft.label = v))
 			);
 
+		new Setting(contentEl)
+			.setName("리본 목록에 넣기")
+			.setDesc(
+				"왼쪽 리본 아이콘을 눌렀을 때 나오는 목록에 이 버튼을 넣습니다. 꺼도 노트의 코드블록과 커맨드로는 그대로 쓸 수 있습니다."
+			)
+			.addToggle((t) =>
+				t.setValue(this.draft.ribbon).onChange((v) => (this.draft.ribbon = v))
+			);
+
 		new Setting(contentEl).setName("이 버튼이 넣을 곳").setHeading();
 
 		new Setting(contentEl)
