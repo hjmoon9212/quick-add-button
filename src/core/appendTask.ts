@@ -17,7 +17,12 @@ export function targetLabel(rule: RuleDef, resolved?: TFile | null): string {
 		: rule.file === CURRENT
 			? "이 노트"
 			: baseName(rule.file);
-	return `${where} › ${rule.heading}`;
+	// 단계까지 보여준다 — 같은 이름의 헤딩이 여러 단계에 있으면 이름만으로는
+	// 어디로 가는지 알 수 없다. level 0 은 "아무 단계" 라 붙일 게 없다.
+	const head = rule.level
+		? `${"#".repeat(rule.level)} ${rule.heading}`
+		: rule.heading;
+	return `${where} › ${head}`;
 }
 
 export function baseName(path: string): string {

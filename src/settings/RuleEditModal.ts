@@ -1,6 +1,7 @@
 import {
 	AbstractInputSuggest,
 	App,
+	DropdownComponent,
 	Modal,
 	Setting,
 	TextComponent,
@@ -48,6 +49,8 @@ export class RuleEditModal extends Modal {
 	private headingSel!: HTMLSelectElement;
 	/** 파일이 그때그때 달라지는 규칙(`@current` 등)은 헤딩을 직접 적는다 */
 	private headingText!: TextComponent;
+	/** 직접 적을 때 몇 단계 헤딩인지. 목록에서 고를 때는 고른 헤딩이 정한다 */
+	private headingLevel!: DropdownComponent;
 	private headingDesc!: HTMLElement;
 
 	constructor(
@@ -141,13 +144,19 @@ export class RuleEditModal extends Modal {
 					this.draft.heading = v.slice(at + 1);
 				});
 			})
+			.addDropdown((dd) => {
+				this.headingLevel = dd;
+				// 0 = 이름만 대조. 노트마다 단계가 다르면 이쪽이고, 단계까지
+				// 똑같이 쓰는 볼트라면 골라 두는 편이 정확하다.
+				dd.addOption("0", "아무 단계");
+				for (let n = 1; n <= 6; n++) dd.addOption(String(n), "#".repeat(n));
+				dd.onChange((v) => (this.draft.level = Number(v)));
+			})
 			.addText((t) => {
 				this.headingText = t;
-				t.setPlaceholder("할 일").onChange((v) => {
-					this.draft.heading = v.trim();
-					// 노트마다 헤딩 레벨이 다를 수 있으므로 이름만 대조한다.
-					this.draft.level = 0;
-				});
+				t.setPlaceholder("할 일").onChange(
+					(v) => (this.draft.heading = v.trim())
+				);
 			});
 		this.headingDesc = headingSetting.descEl;
 		this.refreshHeadings();
@@ -276,11 +285,13 @@ export class RuleEditModal extends Modal {
 		// 이때만 직접 적게 한다.
 		const dynamic = isDynamicTarget(this.draft.file);
 		this.headingSel.toggle(!dynamic);
+		this.headingLevel.selectEl.toggle(dynamic);
 		this.headingText.inputEl.toggle(dynamic);
 		if (dynamic) {
 			this.headingText.setValue(this.draft.heading);
+			this.headingLevel.setValue(String(this.draft.level || 0));
 			this.headingDesc?.setText(
-				"노트마다 다른 곳에 넣으므로 헤딩을 직접 적습니다. 이 이름의 헤딩이 없는 노트에서는 아무것도 넣지 않고 알립니다."
+				"노트마다 다른 곳에 넣으므로 헤딩을 직접 적습니다. 단계를 고르면 같은 이름이 여러 단계에 있을 때 그 단계만 씁니다 — 「아무 단계」는 이름만 맞으면 됩니다. 이 헤딩이 없는 노트에서는 아무것도 넣지 않고 알립니다."
 			);
 			return;
 		}
