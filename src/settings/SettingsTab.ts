@@ -1,7 +1,8 @@
 import { App, Notice, PluginSettingTab, Setting, TFile } from "obsidian";
 import type QuickAddButtonPlugin from "../main";
-import { baseName } from "../core/appendTask";
+import { targetLabel } from "../core/appendTask";
 import { hasHeading, headingsOf } from "../core/headings";
+import { isDynamicTarget } from "../core/paths";
 import { RuleDef, blankRule } from "./Settings";
 import { RuleEditModal } from "./RuleEditModal";
 import { normalizeSettings } from "./validate";
@@ -88,7 +89,7 @@ export class QuickAddButtonSettingTab extends PluginSettingTab {
 
 	private renderRule(root: HTMLElement, rule: RuleDef, i: number): void {
 		const total = this.plugin.settings.rules.length;
-		const where = `${baseName(rule.file)} › ${rule.heading}`;
+		const where = targetLabel(rule);
 		const problem = this.ruleProblem(rule);
 
 		const s = new Setting(root)
@@ -164,6 +165,9 @@ export class QuickAddButtonSettingTab extends PluginSettingTab {
 	 */
 	private ruleProblem(rule: RuleDef): string {
 		if (!rule.file || !rule.heading) return "";
+		// 누를 때마다 가리키는 노트가 달라지는 규칙은 지금 검사할 대상이 없다.
+		// 없는 것을 "없다"고 못 하니 조용히 넘긴다 — 실제로 못 찾으면 누를 때 알린다.
+		if (isDynamicTarget(rule.file)) return "";
 		const file = this.app.vault.getAbstractFileByPath(rule.file);
 		if (!(file instanceof TFile)) return "파일이 없습니다";
 		if (!hasHeading(headingsOf(this.app, file), rule.heading, rule.level)) {

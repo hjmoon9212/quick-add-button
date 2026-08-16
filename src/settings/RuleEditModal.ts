@@ -8,6 +8,7 @@ import {
 } from "obsidian";
 import { canonicalGcal, GCAL_TAGS, RuleDef } from "./Settings";
 import { headingsOf } from "../core/headings";
+import { CURRENT, isDynamicTarget } from "../core/paths";
 import { validateRule } from "./validate";
 
 /** 볼트의 마크다운 파일 경로를 입력하면서 검색한다. */
@@ -21,11 +22,14 @@ class FileSuggest extends AbstractInputSuggest<string> {
 	}
 	getSuggestions(query: string): string[] {
 		const q = query.toLowerCase();
-		return this.app.vault
+		const paths = this.app.vault
 			.getMarkdownFiles()
 			.map((f) => f.path)
 			.filter((p) => p.toLowerCase().includes(q))
 			.slice(0, 50);
+		// 고정 경로 목록에 섞이지 않게 맨 위에 둔다. 안 그러면 이런 값을 적을 수
+		// 있다는 걸 알 방법이 없다.
+		return CURRENT.includes(q) ? [CURRENT, ...paths] : paths;
 	}
 	renderSuggestion(value: string, el: HTMLElement): void {
 		el.setText(value);
@@ -42,6 +46,8 @@ class FileSuggest extends AbstractInputSuggest<string> {
 export class RuleEditModal extends Modal {
 	private draft: RuleDef;
 	private headingSel!: HTMLSelectElement;
+	/** 파일이 그때그때 달라지는 규칙(`@current` 등)은 헤딩을 직접 적는다 */
+	private headingText!: TextComponent;
 	private headingDesc!: HTMLElement;
 
 	constructor(
@@ -94,7 +100,9 @@ export class RuleEditModal extends Modal {
 
 		new Setting(contentEl)
 			.setName("파일")
-			.setDesc("할일을 넣을 노트. 입력하면 볼트에서 검색됩니다.")
+			.setDesc(
+				"할일을 넣을 노트. 입력하면 볼트에서 검색됩니다. @current 는 버튼을 누른 노트 자신, ./ 와 ../ 는 그 노트의 폴더 기준입니다."
+			)
 			.addText((t) => {
 				t.setPlaceholder("0. Note/0. Inbox/Temp Tasks.md")
 					.setValue(this.draft.file)
@@ -122,6 +130,14 @@ export class RuleEditModal extends Modal {
 					const at = v.indexOf(":");
 					this.draft.level = Number(v.slice(0, at));
 					this.draft.heading = v.slice(at + 1);
+				});
+			})
+			.addText((t) => {
+				this.headingText = t;
+				t.setPlaceholder("할 일").onChange((v) => {
+					this.draft.heading = v.trim();
+					// 노트마다 헤딩 레벨이 다를 수 있으므로 이름만 대조한다.
+					this.draft.level = 0;
 				});
 			});
 		this.headingDesc = headingSetting.descEl;
@@ -245,6 +261,20 @@ export class RuleEditModal extends Modal {
 	private refreshHeadings(): void {
 		if (!this.headingSel) return;
 		this.headingSel.empty();
+
+		// 가리키는 노트가 누를 때마다 달라지면 헤딩 목록을 미리 못 만든다.
+		// 목록을 만들 수 없다고 입력까지 막으면 이 기능 자체를 못 쓰므로
+		// 이때만 직접 적게 한다.
+		const dynamic = isDynamicTarget(this.draft.file);
+		this.headingSel.toggle(!dynamic);
+		this.headingText.inputEl.toggle(dynamic);
+		if (dynamic) {
+			this.headingText.setValue(this.draft.heading);
+			this.headingDesc?.setText(
+				"노트마다 다른 곳에 넣으므로 헤딩을 직접 적습니다. 이 이름의 헤딩이 없는 노트에서는 아무것도 넣지 않고 알립니다."
+			);
+			return;
+		}
 
 		const file = this.app.vault.getAbstractFileByPath(this.draft.file);
 		if (!(file instanceof TFile)) {

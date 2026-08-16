@@ -39,7 +39,9 @@ export function renderBlock(
 				continue;
 			}
 			const btn = row.createEl("button", { text: b.rule.label, cls: "qab-btn" });
-			btn.onclick = () => openForm(plugin, b.rule);
+			// 기준 노트는 **블록이 놓인 노트**다. 활성 노트를 쓰면 분할 화면에서
+			// 옆 창을 보고 있을 때 엉뚱한 노트가 기준이 된다.
+			btn.onclick = () => openForm(plugin, b.rule, ctx.sourcePath);
 		}
 	};
 
@@ -47,8 +49,17 @@ export function renderBlock(
 	draw();
 }
 
-export function openForm(plugin: QuickAddButtonPlugin, rule: RuleDef): void {
-	new TaskFormModal(plugin.app, rule).open();
+/**
+ * sourcePath 를 안 주면 그때 보고 있던 노트를 기준으로 삼는다 — 리본과 커맨드가
+ * 그렇다. 블록에서 부를 때만 블록이 놓인 노트를 명시한다.
+ */
+export function openForm(
+	plugin: QuickAddButtonPlugin,
+	rule: RuleDef,
+	sourcePath?: string
+): void {
+	const base = sourcePath ?? plugin.app.workspace.getActiveFile()?.path ?? "";
+	new TaskFormModal(plugin.app, rule, base).open();
 }
 
 function renderError(

@@ -74,6 +74,10 @@
   opacity: 0.5;
 }
 
+.qab-dest .qab-dest-warn {
+  color: var(--text-error);
+}
+
 .qab-form input.qab-title {
   width: 100%;
   margin-bottom: 12px;

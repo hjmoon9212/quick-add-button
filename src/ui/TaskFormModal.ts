@@ -1,6 +1,7 @@
 import { App, Modal, Notice } from "obsidian";
 import { RuleDef } from "../settings/Settings";
 import { appendTask, revealInserted, targetLabel } from "../core/appendTask";
+import { resolveTargetFile } from "../core/resolveFile";
 import { addDays, resolveDateToken, todayISO } from "../core/dates";
 import { newTaskId } from "../core/taskId";
 
@@ -33,7 +34,12 @@ export class TaskFormModal extends Modal {
 	private openChk!: HTMLInputElement;
 	private preview!: HTMLElement;
 
-	constructor(app: App, private rule: RuleDef) {
+	constructor(
+		app: App,
+		private rule: RuleDef,
+		/** `@current` · 상대경로 · 링크 해석의 기준이 되는 노트 */
+		private sourcePath: string
+	) {
 		super(app);
 	}
 
@@ -42,9 +48,19 @@ export class TaskFormModal extends Modal {
 		contentEl.addClass("qab-modal");
 
 		contentEl.createEl("h3", { text: this.rule.label });
+
+		// 넣을 자리는 **연 시점에 푼 것**을 보여준다. `@current` 라고 적혀 있으면
+		// 지금 그게 어느 노트인지가 폼에서 바로 보여야 한다.
+		const file = resolveTargetFile(this.app, this.rule.file, this.sourcePath);
 		const dest = contentEl.createEl("div", { cls: "qab-dest" });
 		dest.createEl("span", { text: "→", cls: "qab-arrow" });
-		dest.createEl("span", { text: targetLabel(this.rule) });
+		dest.createEl("span", { text: targetLabel(this.rule, file) });
+		if (!file) {
+			dest.createEl("span", {
+				cls: "qab-dest-warn",
+				text: "⚠️ 가리키는 노트를 찾지 못했습니다",
+			});
+		}
 
 		const d = this.rule.defaults;
 		const form = contentEl.createEl("div", { cls: "qab-form" });
@@ -191,7 +207,8 @@ export class TaskFormModal extends Modal {
 				this.app,
 				this.rule,
 				this.buildLine(id),
-				this.posSel.value === "top"
+				this.posSel.value === "top",
+				this.sourcePath
 			);
 			if (!at) return;
 
