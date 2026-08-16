@@ -169,6 +169,16 @@
   color: var(--text-faint);
 }
 
+/* ── 리본: 버튼 고르기 ─────────────────────────────────── */
+.qab-pick-label {
+  font-size: 14px;
+}
+
+.qab-pick-dest {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
 /* ── 설정탭 ────────────────────────────────────────────── */
 .qab-settings .qab-rule {
   padding: 8px 0;

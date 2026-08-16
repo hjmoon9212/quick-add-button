@@ -8,6 +8,7 @@ import { QuickAddButtonSettings, RuleDef } from "./settings/Settings";
 import { normalizeSettings } from "./settings/validate";
 import { QuickAddButtonSettingTab } from "./settings/SettingsTab";
 import { openForm, renderBlock } from "./block/render";
+import { RulePickerModal } from "./ui/RulePickerModal";
 
 export default class QuickAddButtonPlugin extends Plugin {
 	settings!: QuickAddButtonSettings;
@@ -26,6 +27,8 @@ export default class QuickAddButtonPlugin extends Plugin {
 
 		this.addSettingTab(new QuickAddButtonSettingTab(this.app, this));
 		this.registerRuleCommands();
+
+		this.addRibbonIcon("list-plus", "빠른 추가 버튼", () => this.openPicker());
 	}
 
 	onunload(): void {
@@ -103,6 +106,23 @@ export default class QuickAddButtonPlugin extends Plugin {
 			if (!wanted.has(id)) this.removeCommandById(`${this.manifest.id}:${id}`);
 		}
 		this.commandIds = wanted;
+	}
+
+	/**
+	 * 리본 → 버튼 목록 → 고른 버튼의 폼. 코드블록을 놓은 노트에 가 있지 않아도
+	 * 버튼을 쓸 수 있는 통로다.
+	 *
+	 * 리본 아이콘 자체를 숨기고 싶으면 옵시디언 기본 기능(리본 우클릭 → 관리)을
+	 * 쓴다 — 플러그인이 따로 설정을 둘 이유가 없다.
+	 */
+	private openPicker(): void {
+		const rules = this.settings.rules.filter((r) => r.enabled);
+		if (!rules.length) {
+			new Notice("켜져 있는 버튼이 없습니다. 설정에서 규칙을 추가하세요.");
+			this.openSettings();
+			return;
+		}
+		new RulePickerModal(this.app, rules, (rule) => this.openRule(rule)).open();
 	}
 
 	private openRule(rule: RuleDef): void {
