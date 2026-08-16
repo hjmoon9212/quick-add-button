@@ -135,7 +135,6 @@ export class RuleEditModal extends Modal {
 
 		const headingSetting = new Setting(contentEl)
 			.setName("헤딩")
-			.setDesc("이 헤딩 아래에 할일이 들어갑니다.")
 			.addDropdown((dd) => {
 				this.headingSel = dd.selectEl;
 				dd.onChange((v) => {
@@ -290,9 +289,7 @@ export class RuleEditModal extends Modal {
 		if (dynamic) {
 			this.headingText.setValue(this.draft.heading);
 			this.headingLevel.setValue(String(this.draft.level || 0));
-			this.headingDesc?.setText(
-				"노트마다 다른 곳에 넣으므로 헤딩을 직접 적습니다. 단계를 고르면 같은 이름이 여러 단계에 있을 때 그 단계만 씁니다 — 「아무 단계」는 이름만 맞으면 됩니다. 이 헤딩이 없는 노트에서는 아무것도 넣지 않고 알립니다."
-			);
+			this.headingDesc?.setText("");
 			return;
 		}
 
@@ -315,7 +312,9 @@ export class RuleEditModal extends Modal {
 			o.value = `${h.level}:${h.heading}`;
 		}
 		this.headingSel.disabled = false;
-		this.headingDesc?.setText("이 헤딩 아래에 할일이 들어갑니다.");
+		// 고를 수 있는 상태에서는 설명을 비운다. descEl 은 아래의 "파일을 먼저
+		// 선택하세요" 같은 **상태 알림**에만 쓴다.
+		this.headingDesc?.setText("");
 
 		const want = `${this.draft.level}:${this.draft.heading}`;
 		if (this.draft.heading && options.some((h) => `${h.level}:${h.heading}` === want)) {
