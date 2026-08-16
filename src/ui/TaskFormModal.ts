@@ -108,7 +108,7 @@ export class TaskFormModal extends Modal {
 		this.openChk = mkChk(opts, "↪ 추가 후 이동", d.openAfter);
 		this.openChk.parentElement?.setAttr(
 			"title",
-			"뒤에 있는 노트를 넣은 줄로 옮깁니다. 폼은 닫히지 않습니다."
+			"뒤에 있는 노트를 넣은 줄로 옮깁니다. 이미 그 노트를 보고 있으면 그대로 둡니다. 폼은 닫히지 않습니다."
 		);
 
 		this.preview = form.createEl("div", { cls: "qab-preview" });

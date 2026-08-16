@@ -204,7 +204,7 @@ export class RuleEditModal extends Modal {
 		new Setting(contentEl)
 			.setName("↪ 추가 후 그 노트로 이동")
 			.setDesc(
-				"뒤에 있는 노트를 넣은 줄로 옮깁니다. 폼은 그대로 열려 있어 계속 넣을 수 있고, 닫으면 바로 그 자리가 보입니다."
+				"뒤에 있는 노트를 넣은 줄로 옮깁니다. 이미 그 노트를 보고 있으면 그대로 둡니다. 폼은 그대로 열려 있어 계속 넣을 수 있고, 닫으면 바로 그 자리가 보입니다."
 			)
 			.addToggle((t) =>
 				t.setValue(d.openAfter).onChange((v) => (d.openAfter = v))

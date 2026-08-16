@@ -57,8 +57,15 @@ export async function appendTask(
  *
  * 이미 열려 있는 탭을 찾아 가는 방법도 있지만, 백그라운드 탭은 deferred 라
  * view.file 이 비어 있어 믿을 수 없다. 현재 탭에 여는 쪽이 예측 가능하다.
+ *
+ * 단 **그 노트를 이미 보고 있으면 아무것도 하지 않는다.** 넣은 줄은 그 자리에서
+ * 바로 나타나므로 다시 열 이유가 없고, 같은 파일을 다시 열면 편집 중이던
+ * 커서·스크롤만 튄다. 버튼 블록과 넣을 헤딩이 같은 노트에 있는 경우(Temp Tasks
+ * 가 그렇다)가 흔해서 이쪽이 기본 상황이다.
  */
 export async function revealInserted(app: App, at: Inserted): Promise<void> {
+	if (app.workspace.getActiveFile()?.path === at.file.path) return;
+
 	await app.workspace
 		.getLeaf(false)
 		.openFile(at.file, { eState: { line: at.index }, active: false });
