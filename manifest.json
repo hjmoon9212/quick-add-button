@@ -1,7 +1,7 @@
 {
   "id": "quick-add-button",
   "name": "Quick Add Button",
-  "version": "0.14.0",
+  "version": "0.14.1",
   "minAppVersion": "1.4.10",
   "description": "노트에 코드블록 한 줄로 빠른 추가 버튼을 놓습니다. 버튼을 누르면 미니 폼이 뜨고, 지정한 노트의 지정한 헤딩 아래에 Obsidian Tasks 한 줄이 들어갑니다. 버튼(규칙)은 설정창에서 추가·편집합니다.",
   "author": "Moon",

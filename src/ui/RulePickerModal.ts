@@ -18,7 +18,7 @@ export class RulePickerModal extends FuzzySuggestModal<RuleDef> {
 		private onPick: (rule: RuleDef) => void
 	) {
 		super(app);
-		this.setPlaceholder("버튼 고르기");
+		this.setPlaceholder("Choose a button");
 		this.setInstructions([
 			{ command: "↑↓", purpose: "이동" },
 			{ command: "↵", purpose: "열기" },
