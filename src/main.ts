@@ -28,7 +28,16 @@ export default class QuickAddButtonPlugin extends Plugin {
 		this.addSettingTab(new QuickAddButtonSettingTab(this.app, this));
 		this.registerRuleCommands();
 
-		this.addRibbonIcon("list-plus", "빠른 추가 버튼", () => this.openPicker());
+		// 리본과 같은 통로를 커맨드로도 연다 — 단축키를 걸 수 있게.
+		// 규칙별 커맨드와 달리 규칙 목록에 매이지 않으니 registerRuleCommands 의
+		// 정리 루프 밖, 여기서 한 번만 등록한다.
+		this.addCommand({
+			id: "open-picker",
+			name: "Open picker",
+			callback: () => this.openPicker(),
+		});
+
+		this.addRibbonIcon("list-plus", "Quick Add Button", () => this.openPicker());
 	}
 
 	onunload(): void {
