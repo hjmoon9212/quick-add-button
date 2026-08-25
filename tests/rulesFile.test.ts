@@ -1,4 +1,4 @@
-import { isMarkdown, parseRules, unwrapRules, wrapRules } from "../src/core/rulesFile";
+import { isMarkdown, parseRules, unwrapRules, withExtension, wrapRules } from "../src/core/rulesFile";
 
 let pass = 0;
 let fail = 0;
@@ -47,6 +47,15 @@ eq(parseRules('[{"name":"A"}]'), { rules: [{ name: "A" }] }, "배열만 적어�
 eq(parseRules("깨진 내용"), null, "못 읽으면 null");
 eq(parseRules('{"rules":"배열이 아님"}'), null, "rules 가 배열이 아니면 null");
 eq(parseRules(""), null, "빈 파일도 null");
+
+// ── 확장자 보정 ───────────────────────────────────────────────────
+eq(withExtension("Plugin/규칙"), "Plugin/규칙.md", "확장자가 없으면 .md 를 붙인다");
+eq(withExtension("Plugin/규칙.md"), "Plugin/규칙.md", "이미 .md 면 그대로");
+eq(withExtension("Plugin/규칙.json"), "Plugin/규칙.json", "다른 확장자도 그대로");
+eq(withExtension("  /Plugin/규칙  "), "Plugin/규칙.md", "공백과 앞의 / 는 떼어낸다");
+eq(withExtension("규칙"), "규칙.md", "루트 파일");
+eq(withExtension("2026. 자료/규칙"), "2026. 자료/규칙.md", "폴더 이름의 점은 확장자가 아니다");
+eq(withExtension(""), "", "빈 값은 빈 값");
 
 console.log(`${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

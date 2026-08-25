@@ -11,7 +11,7 @@ import { QuickAddButtonSettingTab } from "./settings/SettingsTab";
 import { openForm, renderBlock } from "./block/render";
 import { RulePickerModal } from "./ui/RulePickerModal";
 import { ConfirmModal } from "./ui/ConfirmModal";
-import { parseRules, wrapRules } from "./core/rulesFile";
+import { parseRules, withExtension, wrapRules } from "./core/rulesFile";
 
 export default class QuickAddButtonPlugin extends Plugin {
 	settings!: QuickAddButtonSettings;
@@ -63,6 +63,10 @@ export default class QuickAddButtonPlugin extends Plugin {
 		};
 		this.registerEvent(this.app.vault.on("modify", watch));
 		this.registerEvent(this.app.vault.on("create", watch));
+
+		// 시작 직후에는 볼트 색인이 아직 없어 getAbstractFileByPath 가 null 을 준다.
+		// 그때 규칙 파일을 읽으려 하면 조용히 실패하고 data.json 사본이 남는다.
+		this.app.workspace.onLayoutReady(() => void this.syncRulesFile());
 	}
 
 	onunload(): void {
@@ -103,8 +107,32 @@ export default class QuickAddButtonPlugin extends Plugin {
 		this.settings = settings;
 		this.diskStamp = stamp(raw);
 		if (issues.length) console.warn("[quick-add-button] 설정 경고", issues);
-		// 규칙 파일을 쓰기로 했다면 그쪽이 진실이다. data.json 의 규칙은 사본으로만 남는다.
-		if (settings.rulesFile) await this.pullRules(true);
+	}
+
+	/**
+	 * 규칙 파일을 쓰기로 했다면 그쪽이 진실이다 — 시작할 때 한 번 읽어 맞춘다.
+	 * data.json 의 규칙은 사본으로만 남는다.
+	 */
+	private async syncRulesFile(): Promise<void> {
+		if (!this.settings.rulesFile) return;
+
+		// 확장자 없이 적힌 경로를 스스로 고친다. 그대로 두면 볼트에 그 파일이
+		// 없으므로 확장자 없는 파일을 새로 만들어 노트가 둘로 갈린다.
+		const fixed = withExtension(this.settings.rulesFile);
+		if (
+			fixed !== this.settings.rulesFile &&
+			this.app.vault.getAbstractFileByPath(fixed) instanceof TFile
+		) {
+			this.settings.rulesFile = fixed;
+			await this.saveData(this.settings);
+			this.diskStamp = stamp(this.settings);
+			new Notice(`규칙 파일 경로를 ${fixed} 로 고쳤습니다.`);
+		}
+
+		if (!(await this.pullRules(true))) return;
+		this.refreshAll();
+		this.registerRuleCommands();
+		this.tab?.display();
 	}
 
 	/**
@@ -185,7 +213,7 @@ export default class QuickAddButtonPlugin extends Plugin {
 
 	/** 설정탭에서 규칙 파일 경로를 바꿨을 때. */
 	async setRulesFile(path: string): Promise<void> {
-		const next = path.trim().replace(/^\/+/, "");
+		const next = withExtension(path);
 		if (next === this.settings.rulesFile) return;
 
 		if (!next) {

@@ -57,3 +57,17 @@ export function parseRules(text: string): { rules: unknown[] } | null {
 	if (obj && Array.isArray(obj.rules)) return { rules: obj.rules };
 	return null;
 }
+
+/**
+ * 확장자가 없으면 `.md` 를 붙인다.
+ *
+ * 설정칸에 `Plugin/규칙` 처럼 적기 쉬운데, 그대로 두면 볼트에 그 경로의 파일이
+ * 없으므로 플러그인이 확장자 없는 파일을 새로 만들어 버린다. 실제로 노트 하나가
+ * 둘로 갈렸다(2026-08-26). 볼트에서 확장자 없는 파일은 노트로 열리지도 않는다.
+ */
+export function withExtension(path: string): string {
+	const clean = path.trim().replace(/^\/+/, "");
+	if (!clean) return "";
+	const base = clean.slice(clean.lastIndexOf("/") + 1);
+	return base.includes(".") ? clean : `${clean}.md`;
+}
