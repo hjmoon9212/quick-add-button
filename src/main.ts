@@ -116,20 +116,13 @@ export default class QuickAddButtonPlugin extends Plugin {
 	private async syncRulesFile(): Promise<void> {
 		if (!this.settings.rulesFile) return;
 
-		// 확장자 없이 적힌 경로를 스스로 고친다. 그대로 두면 볼트에 그 파일이
-		// 없으므로 확장자 없는 파일을 새로 만들어 노트가 둘로 갈린다.
-		const fixed = withExtension(this.settings.rulesFile);
-		if (
-			fixed !== this.settings.rulesFile &&
-			this.app.vault.getAbstractFileByPath(fixed) instanceof TFile
-		) {
-			this.settings.rulesFile = fixed;
-			await this.saveData(this.settings);
-			this.diskStamp = stamp(this.settings);
-			new Notice(`규칙 파일 경로를 ${fixed} 로 고쳤습니다.`);
-		}
+		await this.fixRulesPath();
 
-		if (!(await this.pullRules(true))) return;
+		if (!(await this.pullRules(true))) {
+			// 파일이 아직 없다(경로만 정해 둔 상태). 지금 규칙을 그리로 내보낸다.
+			await this.pushRules();
+			return;
+		}
 		this.refreshAll();
 		this.registerRuleCommands();
 		this.tab?.display();
@@ -162,6 +155,40 @@ export default class QuickAddButtonPlugin extends Plugin {
 		this.rulesStamp = text;
 		if (issues.length) console.warn("[quick-add-button] 규칙 파일 경고", issues);
 		return true;
+	}
+
+	/**
+	 * 확장자 없이 적힌 경로를 스스로 고친다.
+	 *
+	 * 그냥 두면 두 가지로 망가진다. 하나는 볼트에 그 경로의 파일이 없어 플러그인이
+	 * 확장자 없는 파일을 새로 만들어 노트가 둘로 갈리는 것. 다른 하나는 그렇게
+	 * 만들어진 파일이 노트가 아니어서 **동기화에서 빠지는** 것 — 규칙을 볼트로
+	 * 내보낸 이유 자체가 사라진다. 그래서 이미 만들어진 것은 이름을 옮긴다.
+	 */
+	private async fixRulesPath(): Promise<void> {
+		const bare = this.settings.rulesFile;
+		const fixed = withExtension(bare);
+		if (fixed === bare) return;
+
+		const adapter = this.app.vault.adapter;
+		const hasFixed = await adapter.exists(fixed);
+		const hasBare = await adapter.exists(bare);
+
+		if (!hasFixed && hasBare) {
+			try {
+				await adapter.rename(bare, fixed);
+				new Notice(`규칙 파일을 ${fixed} 로 옮겼습니다.`);
+			} catch (e) {
+				console.error("[quick-add-button] 규칙 파일 이름 바꾸기 실패", e);
+				return;
+			}
+		} else if (!hasFixed) {
+			return; // 아직 아무것도 없다 — 다음 저장 때 fixed 경로로 만들어진다.
+		}
+
+		this.settings.rulesFile = fixed;
+		await this.saveData(this.settings);
+		this.diskStamp = stamp(this.settings);
 	}
 
 	/** 규칙을 볼트 파일에 쓴다. 파일이 없으면 만든다. */
