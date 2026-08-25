@@ -9,6 +9,7 @@ import { normalizeSettings } from "./settings/validate";
 import { QuickAddButtonSettingTab } from "./settings/SettingsTab";
 import { openForm, renderBlock } from "./block/render";
 import { RulePickerModal } from "./ui/RulePickerModal";
+import { ConfirmModal } from "./ui/ConfirmModal";
 
 export default class QuickAddButtonPlugin extends Plugin {
 	settings!: QuickAddButtonSettings;
@@ -16,6 +17,15 @@ export default class QuickAddButtonPlugin extends Plugin {
 	/** 화면에 살아 있는 코드블록들의 재렌더 콜백. */
 	private live = new Set<() => void>();
 	private commandIds = new Set<string>();
+
+	/**
+	 * 마지막으로 확인한 data.json 의 내용. 저장 전에 이 값과 파일을 대조한다.
+	 * 파일이 없던 상태면 null.
+	 */
+	private diskStamp: string | null = null;
+
+	/** 충돌 시 화면을 다시 그리려고 들고 있는다. */
+	private tab?: QuickAddButtonSettingTab;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -25,7 +35,8 @@ export default class QuickAddButtonPlugin extends Plugin {
 			(source, el, ctx) => renderBlock(this, source, el, ctx)
 		);
 
-		this.addSettingTab(new QuickAddButtonSettingTab(this.app, this));
+		this.tab = new QuickAddButtonSettingTab(this.app, this);
+		this.addSettingTab(this.tab);
 		this.registerRuleCommands();
 
 		// 리본과 같은 통로를 커맨드로도 연다 — 단축키를 걸 수 있게.
@@ -73,15 +84,66 @@ export default class QuickAddButtonPlugin extends Plugin {
 	}
 
 	async loadSettings(): Promise<void> {
-		const { settings, issues } = normalizeSettings(await this.loadData());
+		const raw = await this.loadData();
+		const { settings, issues } = normalizeSettings(raw);
 		this.settings = settings;
+		this.diskStamp = stamp(raw);
 		if (issues.length) console.warn("[quick-add-button] 설정 경고", issues);
 	}
 
+	/**
+	 * 저장 전에 디스크를 다시 본다.
+	 *
+	 * data.json 은 우리만 쓰는 파일이 아니다. Obsidian Sync 의 「설치된 커뮤니티
+	 * 플러그인」이 켜진 기기끼리는 이 파일이 통째로 오가고, 그렇게 들어온 내용을
+	 * 플러그인은 모른다. 그 상태에서 저장하면 saveData 가 파일을 통째로 갈아
+	 * 끼우므로 방금 들어온 규칙이 메모리에 있던 옛 목록에 덮여 사라진다.
+	 * 실제로 그렇게 규칙을 여러 개 잃었다(2026-08-23).
+	 *
+	 * 그래서 조용히 이기지 않고 어느 쪽을 남길지 묻는다.
+	 */
 	async saveSettings(): Promise<void> {
+		const raw = await this.loadData();
+		const now = stamp(raw);
+		if (this.diskStamp !== null && now !== this.diskStamp) {
+			this.askOnConflict(raw);
+			return;
+		}
+		await this.write();
+	}
+
+	/** 실제로 파일을 쓰는 곳. 쓴 내용을 그대로 기준값으로 삼는다. */
+	private async write(): Promise<void> {
 		await this.saveData(this.settings);
+		this.diskStamp = stamp(this.settings);
 		this.refreshAll();
 		this.registerRuleCommands();
+	}
+
+	private askOnConflict(raw: unknown): void {
+		const incoming = normalizeSettings(raw).settings;
+		new ConfirmModal(this.app, {
+			title: "설정이 이 창 밖에서 바뀌었습니다",
+			body:
+				`data.json 이 다른 기기나 동기화로 바뀌었습니다. ` +
+				`파일에는 규칙 ${incoming.rules.length}개, 지금 화면에는 ` +
+				`${this.settings.rules.length}개 있습니다. ` +
+				`덮어쓰면 파일 쪽 규칙은 사라집니다.`,
+			cta: "화면 것으로 덮어쓰기",
+			onConfirm: () => this.write(),
+			cancelText: "파일 것으로 되돌리기",
+			onCancel: () => this.adopt(incoming, raw),
+		}).open();
+	}
+
+	/** 파일 쪽을 받아들인다. 화면에서 하던 편집은 버린다. */
+	private adopt(incoming: QuickAddButtonSettings, raw: unknown): void {
+		this.settings = incoming;
+		this.diskStamp = stamp(raw);
+		this.refreshAll();
+		this.registerRuleCommands();
+		this.tab?.display();
+		new Notice(`파일 쪽 설정을 불러왔습니다 — 규칙 ${incoming.rules.length}개`);
 	}
 
 	openSettings(): void {
@@ -159,4 +221,15 @@ export default class QuickAddButtonPlugin extends Plugin {
 			/* 비공개 API 라 형태가 바뀔 수 있다. 실패해도 나머지는 계속 간다 */
 		}
 	}
+}
+
+/**
+ * 파일 내용을 비교용 문자열 하나로 만든다. 파일이 없으면 null.
+ *
+ * saveData 는 우리가 준 객체를 그대로 직렬화하므로, 방금 쓴 `this.settings` 와
+ * 다시 읽어들인 값은 키 순서까지 같은 문자열이 된다. 그래서 이 값이 다르면
+ * "우리가 아닌 누군가가 파일을 건드렸다" 가 성립한다.
+ */
+function stamp(raw: unknown): string | null {
+	return raw === null || raw === undefined ? null : JSON.stringify(raw);
 }

@@ -6,6 +6,15 @@ export interface ConfirmOptions {
 	/** 실행 버튼 글자 */
 	cta: string;
 	onConfirm: () => void | Promise<void>;
+	/** 왼쪽 버튼 글자. 기본은 "취소" */
+	cancelText?: string;
+	/**
+	 * 왼쪽 버튼을 눌렀을 때. 없으면 그냥 닫는다.
+	 *
+	 * Esc 나 바깥 클릭으로 닫을 때는 부르지 않는다 — 두 버튼이 각각 무언가를
+	 * 한다면(덮어쓰기 / 다시 불러오기) 창을 치우는 것과 고르는 것은 다르다.
+	 */
+	onCancel?: () => void | Promise<void>;
 }
 
 /**
@@ -28,8 +37,13 @@ export class ConfirmModal extends Modal {
 
 		const row = contentEl.createEl("div", { cls: "qab-confirm-actions" });
 
-		const cancel = row.createEl("button", { text: "취소" });
-		cancel.onclick = () => this.close();
+		const cancel = row.createEl("button", {
+			text: this.opts.cancelText ?? "취소",
+		});
+		cancel.onclick = () => {
+			this.close();
+			void this.opts.onCancel?.();
+		};
 
 		const ok = row.createEl("button", { text: this.opts.cta, cls: "mod-warning" });
 		ok.onclick = () => {
