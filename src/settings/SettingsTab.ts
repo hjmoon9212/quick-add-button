@@ -57,7 +57,46 @@ export class QuickAddButtonSettingTab extends PluginSettingTab {
 				)
 		);
 
+		this.renderRulesFile(containerEl);
 		this.renderPortability(containerEl);
+	}
+
+	/**
+	 * 규칙을 볼트 파일에 두는 칸.
+	 *
+	 * `.obsidian` 안은 Obsidian Sync 의 「설치된 커뮤니티 플러그인」 토글로만
+	 * 오가는데, 그걸 켜면 `main.js` 까지 같이 다녀서 오래 잠들었던 기기가 옛
+	 * 코드를 밀어 올린다(노트의 "Sync 배포가 롤백을 만든다"). 규칙만 볼트
+	 * 파일로 내보내면 그 토글은 끈 채로 규칙이 기기끼리 공유된다.
+	 */
+	private renderRulesFile(root: HTMLElement): void {
+		const current = this.plugin.settings.rulesFile;
+
+		new Setting(root)
+			.setName("규칙 파일")
+			.setDesc(
+				"규칙을 이 볼트 파일에 둡니다. 비워 두면 data.json 안에 둡니다(기기마다 따로). " +
+					".md 로 적으면 노트의 json 블록에 들어가 동기화·버전 기록이 그대로 붙습니다."
+			)
+			.addText((t) => {
+				t.setPlaceholder("예: 자료/quick-add-button 규칙.md").setValue(current);
+				// 타이핑 중간마다 파일을 만들지 않도록 칸을 벗어날 때만 반영한다.
+				t.inputEl.onblur = () => void this.plugin.setRulesFile(t.getValue());
+				t.inputEl.addEventListener("keydown", (e) => {
+					if (e.key === "Enter") t.inputEl.blur();
+				});
+			});
+
+		if (!current) return;
+
+		const file = this.app.vault.getAbstractFileByPath(current);
+		root.createEl("div", {
+			cls: file instanceof TFile ? "qab-hint" : "qab-hint-error",
+			text:
+				file instanceof TFile
+					? `규칙 ${this.plugin.settings.rules.length}개를 ${current} 에서 읽고 씁니다.`
+					: `⚠️ ${current} 가 아직 없습니다. 규칙을 저장하면 만들어집니다.`,
+		});
 	}
 
 	/** 버튼을 어떻게 넣는지 — 붙여넣을 것 하나만 보여준다. */

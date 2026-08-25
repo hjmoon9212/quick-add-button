@@ -36,7 +36,12 @@ export function normalizeSettings(raw: unknown): {
 	const src = (raw ?? {}) as Partial<QuickAddButtonSettings>;
 	const prevVersion = Number(src.version) || 1;
 
-	const settings: QuickAddButtonSettings = { version: 9, rules: [] };
+	// v10: 규칙을 볼트 파일에 두면 그 경로. 없으면 "" = 예전 방식.
+	const settings: QuickAddButtonSettings = {
+		version: 10,
+		rules: [],
+		rulesFile: str((src as { rulesFile?: unknown }).rulesFile, "").trim().replace(/^\/+/, ""),
+	};
 
 	const rawRules = Array.isArray(src.rules) ? src.rules : DEFAULT_SETTINGS.rules;
 	const seen = new Set<string>();

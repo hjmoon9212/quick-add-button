@@ -3,6 +3,7 @@ import {
 	MarkdownRenderChild,
 	Notice,
 	Plugin,
+	TFile,
 } from "obsidian";
 import { QuickAddButtonSettings, RuleDef } from "./settings/Settings";
 import { normalizeSettings } from "./settings/validate";
@@ -10,6 +11,7 @@ import { QuickAddButtonSettingTab } from "./settings/SettingsTab";
 import { openForm, renderBlock } from "./block/render";
 import { RulePickerModal } from "./ui/RulePickerModal";
 import { ConfirmModal } from "./ui/ConfirmModal";
+import { parseRules, wrapRules } from "./core/rulesFile";
 
 export default class QuickAddButtonPlugin extends Plugin {
 	settings!: QuickAddButtonSettings;
@@ -26,6 +28,9 @@ export default class QuickAddButtonPlugin extends Plugin {
 
 	/** 충돌 시 화면을 다시 그리려고 들고 있는다. */
 	private tab?: QuickAddButtonSettingTab;
+
+	/** 마지막으로 읽거나 쓴 규칙 파일의 내용. 우리 저장에 우리가 반응하지 않으려고 둔다. */
+	private rulesStamp: string | null = null;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -49,6 +54,15 @@ export default class QuickAddButtonPlugin extends Plugin {
 		});
 
 		this.addRibbonIcon("list-plus", "Quick Add Button", () => this.openPicker());
+
+		// 규칙 파일이 밖에서 바뀌면(다른 기기의 동기화, 손편집) 그 자리에서 다시
+		// 읽는다. `.obsidian` 안에서는 이게 안 되어 2026-08-23 에 조용히 잃었다.
+		const watch = (f: { path: string }): void => {
+			if (!this.settings.rulesFile || f.path !== this.settings.rulesFile) return;
+			void this.onRulesFileChanged();
+		};
+		this.registerEvent(this.app.vault.on("modify", watch));
+		this.registerEvent(this.app.vault.on("create", watch));
 	}
 
 	onunload(): void {
@@ -89,6 +103,141 @@ export default class QuickAddButtonPlugin extends Plugin {
 		this.settings = settings;
 		this.diskStamp = stamp(raw);
 		if (issues.length) console.warn("[quick-add-button] 설정 경고", issues);
+		// 규칙 파일을 쓰기로 했다면 그쪽이 진실이다. data.json 의 규칙은 사본으로만 남는다.
+		if (settings.rulesFile) await this.pullRules(true);
+	}
+
+	/**
+	 * 규칙 파일을 읽어 규칙만 갈아 끼운다.
+	 *
+	 * 파일이 없거나 못 읽으면 지금 규칙을 그대로 둔다 — 동기화가 아직 파일을
+	 * 못 가져왔을 뿐일 수 있고, 그때 목록을 비워 버리면 사용자가 잃는다.
+	 */
+	private async pullRules(quiet = false): Promise<boolean> {
+		const path = this.settings.rulesFile;
+		const file = this.app.vault.getAbstractFileByPath(path);
+		if (!(file instanceof TFile)) {
+			if (!quiet) new Notice(`⚠️ 규칙 파일이 없습니다: ${path}`);
+			return false;
+		}
+		const text = await this.app.vault.read(file);
+		const body = parseRules(text);
+		if (!body) {
+			if (!quiet) new Notice(`⚠️ 규칙 파일을 읽지 못했습니다: ${path}`);
+			return false;
+		}
+		const { settings, issues } = normalizeSettings({
+			version: this.settings.version,
+			rules: body.rules,
+		});
+		this.settings.rules = settings.rules;
+		this.rulesStamp = text;
+		if (issues.length) console.warn("[quick-add-button] 규칙 파일 경고", issues);
+		return true;
+	}
+
+	/** 규칙을 볼트 파일에 쓴다. 파일이 없으면 만든다. */
+	private async pushRules(): Promise<void> {
+		const path = this.settings.rulesFile;
+		const json = JSON.stringify({ rules: this.settings.rules }, null, 2);
+		const file = this.app.vault.getAbstractFileByPath(path);
+		try {
+			if (file instanceof TFile) {
+				let out = "";
+				await this.app.vault.process(file, (prev) => (out = wrapRules(json, path, prev)));
+				this.rulesStamp = out;
+			} else {
+				const out = wrapRules(json, path);
+				await this.app.vault.create(path, out);
+				this.rulesStamp = out;
+			}
+		} catch (e) {
+			new Notice(`⚠️ 규칙 파일에 쓰지 못했습니다: ${path}`);
+			console.error("[quick-add-button] 규칙 파일 쓰기 실패", e);
+		}
+	}
+
+	private async onRulesFileChanged(): Promise<void> {
+		const file = this.app.vault.getAbstractFileByPath(this.settings.rulesFile);
+		if (!(file instanceof TFile)) return;
+		const text = await this.app.vault.read(file);
+		if (text === this.rulesStamp) return; // 우리가 쓴 것
+
+		// 내용이 같은데 줄바꿈만 다를 수 있다(다른 기기가 같은 규칙을 다시 쓴 경우).
+		// 그때까지 알림을 띄우면 저장할 때마다 시끄러워진다.
+		const body = parseRules(text);
+		const same =
+			body &&
+			JSON.stringify(
+				normalizeSettings({ version: this.settings.version, rules: body.rules }).settings.rules
+			) === JSON.stringify(this.settings.rules);
+		if (same) {
+			this.rulesStamp = text;
+			return;
+		}
+
+		if (!(await this.pullRules(true))) return;
+		this.refreshAll();
+		this.registerRuleCommands();
+		this.tab?.display();
+		new Notice(`규칙 파일이 바뀌어 다시 읽었습니다 — 규칙 ${this.settings.rules.length}개`);
+	}
+
+	/** 설정탭에서 규칙 파일 경로를 바꿨을 때. */
+	async setRulesFile(path: string): Promise<void> {
+		const next = path.trim().replace(/^\/+/, "");
+		if (next === this.settings.rulesFile) return;
+
+		if (!next) {
+			this.settings.rulesFile = "";
+			this.rulesStamp = null;
+			await this.saveSettings();
+			this.tab?.display();
+			new Notice("규칙을 다시 data.json 에서 관리합니다.");
+			return;
+		}
+
+		const file = this.app.vault.getAbstractFileByPath(next);
+		if (!(file instanceof TFile)) {
+			this.settings.rulesFile = next;
+			await this.saveSettings();
+			this.tab?.display();
+			new Notice(`규칙을 ${next} 로 옮겼습니다.`);
+			return;
+		}
+
+		// 이미 있는 파일이면 어느 쪽 규칙을 남길지 묻는다. 말없이 한쪽을 버리지 않는다.
+		const text = await this.app.vault.read(file);
+		const body = parseRules(text);
+		if (!body) {
+			new Notice(`⚠️ 그 파일에서 규칙을 읽지 못했습니다: ${next}`);
+			return;
+		}
+		const incoming = normalizeSettings({
+			version: this.settings.version,
+			rules: body.rules,
+		}).settings.rules;
+
+		new ConfirmModal(this.app, {
+			title: "이미 규칙이 들어 있는 파일입니다",
+			body:
+				`${next} 에 규칙 ${incoming.length}개가 있습니다. ` +
+				`지금 화면에는 ${this.settings.rules.length}개 있습니다.`,
+			cta: "화면 것으로 덮어쓰기",
+			onConfirm: async () => {
+				this.settings.rulesFile = next;
+				await this.saveSettings();
+				this.tab?.display();
+			},
+			cancelText: "파일 것 쓰기",
+			onCancel: async () => {
+				this.settings.rulesFile = next;
+				this.settings.rules = incoming;
+				this.rulesStamp = text;
+				await this.saveSettings();
+				this.tab?.display();
+			},
+		}).open();
 	}
 
 	/**
@@ -114,6 +263,7 @@ export default class QuickAddButtonPlugin extends Plugin {
 
 	/** 실제로 파일을 쓰는 곳. 쓴 내용을 그대로 기준값으로 삼는다. */
 	private async write(): Promise<void> {
+		if (this.settings.rulesFile) await this.pushRules();
 		await this.saveData(this.settings);
 		this.diskStamp = stamp(this.settings);
 		this.refreshAll();

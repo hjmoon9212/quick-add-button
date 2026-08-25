@@ -75,6 +75,15 @@ export interface RuleDef {
 export interface QuickAddButtonSettings {
 	version: number;
 	rules: RuleDef[];
+	/**
+	 * 규칙을 둘 볼트 파일. 비어 있으면 예전처럼 이 파일(data.json) 안에 둔다.
+	 *
+	 * v10: `.obsidian` 안은 Obsidian Sync 의 「설치된 커뮤니티 플러그인」 토글로만
+	 * 오간다 — 그걸 켜면 `main.js` 까지 같이 다녀서 잠들었던 기기가 옛 코드를
+	 * 밀어 올린다. 규칙만 볼트 파일에 두면 그 토글을 끈 채로 규칙은 공유된다.
+	 * 경로는 기기마다 같아야 의미가 있으므로 규칙 파일 자체에도 함께 적어 둔다.
+	 */
+	rulesFile: string;
 }
 
 export const DEFAULT_TASK_DEFAULTS: TaskDefaults = {
@@ -88,7 +97,8 @@ export const DEFAULT_TASK_DEFAULTS: TaskDefaults = {
 };
 
 export const DEFAULT_SETTINGS: QuickAddButtonSettings = {
-	version: 9,
+	version: 10,
+	rulesFile: "",
 	rules: [
 		{
 			name: "TempTask",
