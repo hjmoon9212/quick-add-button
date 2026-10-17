@@ -207,9 +207,43 @@
   color: var(--text-error);
 }
 
-/* 파일 경로는 길다. 규칙 편집 모달에서 입력칸을 폭 끝까지 늘린다 */
-.qab-modal .qab-wide {
+/* ── 규칙 편집 모달: 라벨 아래 전역 폭 입력칸 ───────── */
+/* 설명문 길이가 행마다 달라, Obsidian 기본 레이아웃(라벨 왼쪽 | 값 오른쪽)에서는
+   입력칸의 폭과 시작점이 행마다 어긋난다. 입력칸이 있는 행만 설명문 아래로 내려
+   모달 폭을 다 쓰게 하면 폭과 위치가 한 번에 맞고, 긴 파일 경로도 안 짤린다.
+   토글과 드롭다운 행은 기본 레이아웃 그대로 둔다. */
+.qab-rule-modal .setting-item.qab-stack {
+  display: block;
+  padding: 12px 0;
+}
+
+.qab-rule-modal .qab-stack .setting-item-info {
+  margin-right: 0;
+}
+
+.qab-rule-modal .qab-stack .setting-item-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
   width: 100%;
+  margin-top: 8px;
+}
+
+/* 입력칸이 남은 폭을 모두 먹어 행마다 오른쪽 끝이 맞는다 — 한 행에
+   버튼(GCal)이나 단계 드롭다운(헤딩)이 같이 있어도 마찬가지다 */
+.qab-rule-modal .qab-stack .setting-item-control input[type="text"],
+.qab-rule-modal .qab-stack .setting-item-control select {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+/* 헤딩 단계 드롭다운과 버튼은 생긴 대로 */
+.qab-rule-modal .qab-stack .setting-item-control select.qab-level,
+.qab-rule-modal .qab-stack .setting-item-control button {
+  flex: 0 0 auto;
+  width: auto;
 }
 
 .qab-io {

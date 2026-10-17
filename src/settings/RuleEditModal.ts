@@ -65,7 +65,7 @@ export class RuleEditModal extends Modal {
 	}
 
 	onOpen(): void {
-		this.contentEl.addClass("qab-modal");
+		this.contentEl.addClass("qab-modal", "qab-rule-modal");
 		this.render();
 	}
 
@@ -81,6 +81,7 @@ export class RuleEditModal extends Modal {
 
 		new Setting(contentEl)
 			.setName("규칙 이름")
+			.setClass("qab-stack")
 			.setDesc("코드블록에서 이 버튼을 지목할 때 쓰는 이름입니다. 영문으로 짓습니다.")
 			.addText((t) =>
 				t
@@ -91,6 +92,7 @@ export class RuleEditModal extends Modal {
 
 		new Setting(contentEl)
 			.setName("버튼 라벨")
+			.setClass("qab-stack")
 			.setDesc("노트에 보이는 버튼 글자입니다.")
 			.addText((t) =>
 				t
@@ -112,6 +114,7 @@ export class RuleEditModal extends Modal {
 
 		new Setting(contentEl)
 			.setName("파일")
+			.setClass("qab-stack")
 			.setDesc(
 				"할일을 넣을 노트. 입력하면 볼트에서 검색됩니다. @current 는 버튼을 누른 노트 자신, ./ 와 ../ 는 그 노트의 폴더 기준입니다."
 			)
@@ -124,7 +127,6 @@ export class RuleEditModal extends Modal {
 						this.draft.level = 0;
 						this.refreshHeadings();
 					});
-				t.inputEl.addClass("qab-wide");
 				new FileSuggest(this.app, t.inputEl, (v) => {
 					this.draft.file = v;
 					this.draft.heading = "";
@@ -135,6 +137,7 @@ export class RuleEditModal extends Modal {
 
 		const headingSetting = new Setting(contentEl)
 			.setName("헤딩")
+			.setClass("qab-stack")
 			.addDropdown((dd) => {
 				this.headingSel = dd.selectEl;
 				dd.onChange((v) => {
@@ -145,6 +148,7 @@ export class RuleEditModal extends Modal {
 			})
 			.addDropdown((dd) => {
 				this.headingLevel = dd;
+				dd.selectEl.addClass("qab-level");
 				// 0 = 이름만 대조. 노트마다 단계가 다르면 이쪽이고, 단계까지
 				// 똑같이 쓰는 볼트라면 골라 두는 편이 정확하다.
 				dd.addOption("0", "아무 단계");
@@ -162,6 +166,7 @@ export class RuleEditModal extends Modal {
 
 		new Setting(contentEl)
 			.setName("태그")
+			.setClass("qab-stack")
 			.setDesc("이 버튼이 쓸 태그입니다. 콤마로 여러 개 적으면 폼에서 고를 수 있고, 맨 앞이 기본값입니다.")
 			.addText((t) =>
 				t
@@ -177,6 +182,7 @@ export class RuleEditModal extends Modal {
 		};
 		new Setting(contentEl)
 			.setName("GCal 캘린더")
+			.setClass("qab-stack")
 			.addText((t) => {
 				gcalInput = t;
 				t.setPlaceholder(GCAL_TAGS.slice(0, 3).join(", "))
