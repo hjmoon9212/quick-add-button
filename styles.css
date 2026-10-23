@@ -246,6 +246,21 @@
   width: auto;
 }
 
+/* 취소·저장은 스크롤과 상관없이 모달 하단에 붙는다 */
+.qab-rule-modal .qab-rule-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin-top: 8px;
+  border-top: 1px solid var(--background-modifier-border);
+  background: var(--modal-background, var(--background-primary));
+}
+
+.qab-rule-modal .qab-rule-footer .setting-item {
+  padding: 12px 0;
+  border-top: none;
+}
+
 .qab-io {
   margin-top: 12px;
 }

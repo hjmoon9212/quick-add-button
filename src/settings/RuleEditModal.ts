@@ -249,9 +249,12 @@ export class RuleEditModal extends Modal {
 				t.setValue(d.openAfter).onChange((v) => (d.openAfter = v))
 			);
 
-		const errBox = contentEl.createEl("div", { cls: "qab-errors" });
+		// 항목이 길어 저장 버튼이 스크롤 끝에 묻힌다. 하단에 붙여 늘 보이게 하고,
+		// 검증 오류도 버튼 바로 위에 떠야 저장을 눌렀을 때 보이므로 같이 넣는다.
+		const footer = contentEl.createDiv({ cls: "qab-rule-footer" });
+		const errBox = footer.createEl("div", { cls: "qab-errors" });
 
-		new Setting(contentEl)
+		new Setting(footer)
 			.addButton((b) => b.setButtonText("취소").onClick(() => this.close()))
 			.addButton((b) =>
 				b
