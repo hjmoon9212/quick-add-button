@@ -246,12 +246,17 @@
   width: auto;
 }
 
-/* 취소·저장은 스크롤과 상관없이 모달 하단에 붙는다 */
+/* 취소·저장은 스크롤과 상관없이 모달 하단에 붙는다.
+   sticky 는 스크롤 컨테이너(.modal)의 안쪽 여백 위에서 멈춰, 그 여백 띠로 본문이
+   비쳐 보인다. 여백만큼 아래로 내려 붙이고 그만큼 배경을 늘려 덮는다. */
 .qab-rule-modal .qab-rule-footer {
+  --qab-modal-pad: var(--size-4-4, 16px);
   position: sticky;
-  bottom: 0;
+  bottom: calc(-1 * var(--qab-modal-pad));
   z-index: 1;
   margin-top: 8px;
+  margin-bottom: calc(-1 * var(--qab-modal-pad));
+  padding-bottom: var(--qab-modal-pad);
   border-top: 1px solid var(--background-modifier-border);
   background: var(--modal-background, var(--background-primary));
 }
