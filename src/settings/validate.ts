@@ -2,6 +2,7 @@ import {
 	canonicalGcal,
 	DEFAULT_SETTINGS,
 	DEFAULT_TASK_DEFAULTS,
+	HeadingRef,
 	QuickAddButtonSettings,
 	RuleDef,
 	TaskDefaults,
@@ -38,7 +39,7 @@ export function normalizeSettings(raw: unknown): {
 
 	// v10: 규칙을 볼트 파일에 두면 그 경로. 없으면 "" = 예전 방식.
 	const settings: QuickAddButtonSettings = {
-		version: 10,
+		version: 11,
 		rules: [],
 		rulesFile: str((src as { rulesFile?: unknown }).rulesFile, "").trim().replace(/^\/+/, ""),
 	};
@@ -75,6 +76,10 @@ export function normalizeSettings(raw: unknown): {
 			}
 		}
 
+		// v10 → v11: heading/level 하나 → headings[]. 둘 다 있으면 headings 가 이긴다
+		// (heading/level 은 headings[0] 의 사본으로만 남는다).
+		const headings = normalizeHeadings(r.headings, heading, level);
+
 		const def: RuleDef = {
 			name,
 			label: str(r.label, name),
@@ -83,8 +88,9 @@ export function normalizeSettings(raw: unknown): {
 			// 리본에 나왔으므로, 기본을 꺼짐으로 두면 갱신하자마자 목록이 빈다.
 			ribbon: r.ribbon !== false,
 			file,
-			heading,
-			level,
+			headings,
+			heading: headings[0]?.heading ?? "",
+			level: headings[0]?.level ?? 0,
 			// v3 → v4 → v5: defaults.tag(문자열) → tag(문자열) → tags(배열)
 			tags: normalizeTags(r),
 			// v6: #gcal/… 라우팅 태그. 없으면 빈 배열 = 이 버튼은 gcal 칸을 안 쓴다.
@@ -99,7 +105,7 @@ export function normalizeSettings(raw: unknown): {
 		if (!file) {
 			issues.push({ index: i, field: "file", message: `${name}: 삽입할 파일이 없습니다` });
 			def.enabled = false;
-		} else if (!heading) {
+		} else if (!headings.length) {
 			issues.push({ index: i, field: "heading", message: `${name}: 삽입할 헤딩이 없습니다` });
 			def.enabled = false;
 		}
@@ -126,6 +132,28 @@ function normalizeDefaults(raw: unknown): TaskDefaults {
 		position: d.position === "top" ? "top" : "end",
 		openAfter: typeof d.openAfter === "boolean" ? d.openAfter : D.openAfter,
 	};
+}
+
+/**
+ * 헤딩 목록을 정리한다. 이름이 빈 항목·같은 (이름, 단계) 중복은 버린다.
+ * 배열이 없으면 예전 단일 heading/level 로 하나 만든다.
+ */
+export function normalizeHeadings(
+	raw: unknown,
+	heading: string,
+	level: number
+): HeadingRef[] {
+	const src: unknown[] = Array.isArray(raw) ? raw : [{ heading, level }];
+	const out: HeadingRef[] = [];
+	for (const x of src) {
+		const h = x as Partial<HeadingRef> | null;
+		const name = str(h?.heading, "").trim();
+		if (!name) continue;
+		const lv = Math.min(6, Math.max(0, Math.trunc(Number(h?.level) || 0)));
+		if (out.some((o) => o.heading === name && o.level === lv)) continue;
+		out.push({ heading: name, level: lv });
+	}
+	return out;
 }
 
 function normalizeTags(r: Partial<RuleDef> & LegacyRule): string[] {
@@ -165,7 +193,14 @@ export function validateRule(
 		errs.push(`이미 같은 이름의 규칙이 있습니다: ${name}`);
 
 	if (!def.file.trim()) errs.push("할일을 넣을 파일을 선택하세요.");
-	if (!def.heading.trim()) errs.push("할일을 넣을 헤딩을 선택하세요.");
+	const heads = def.headings.filter((h) => h.heading.trim());
+	if (!heads.length) errs.push("할일을 넣을 헤딩을 하나 이상 선택하세요.");
+	else {
+		const keys = heads.map((h) => `${h.level}:${h.heading.trim()}`);
+		const dup = heads.filter((_, i) => keys.indexOf(keys[i]) !== i);
+		if (dup.length)
+			errs.push(`같은 헤딩이 두 번 들어 있습니다: ${dup.map((h) => h.heading).join(", ")}`);
+	}
 	if (!def.tags.length) errs.push("태그를 하나 이상 입력하세요.");
 	else {
 		const bad = def.tags.filter((t) => !t.startsWith("#"));

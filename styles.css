@@ -246,6 +246,39 @@
   width: auto;
 }
 
+/* 헤딩 여러 개: 행을 세로로 쌓고, 추가 버튼은 그 아래 */
+.qab-rule-modal .qab-headings .setting-item-control {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.qab-rule-modal .qab-heading-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.qab-rule-modal .qab-heading-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qab-rule-modal .qab-heading-row select:not(.qab-level),
+.qab-rule-modal .qab-heading-row input[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.qab-rule-modal .qab-heading-row select.qab-level {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+.qab-rule-modal .qab-headings .setting-item-control > button {
+  align-self: flex-start;
+}
+
 /* 취소·저장은 스크롤과 상관없이 모달 하단에 붙는다.
    sticky 는 스크롤 컨테이너(.modal)의 안쪽 여백 위에서 멈춰, 그 여백 띠로 본문이
    비쳐 보인다. 여백만큼 아래로 내려 붙이고 그만큼 배경을 늘려 덮는다. */

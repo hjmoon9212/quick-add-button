@@ -214,14 +214,19 @@ export class QuickAddButtonSettingTab extends PluginSettingTab {
 	 * 추가를 누른 뒤에야 Notice 가 뜬다.
 	 */
 	private ruleProblem(rule: RuleDef): string {
-		if (!rule.file || !rule.heading) return "";
+		if (!rule.file || !rule.headings.length) return "";
 		// 누를 때마다 가리키는 노트가 달라지는 규칙은 지금 검사할 대상이 없다.
 		// 없는 것을 "없다"고 못 하니 조용히 넘긴다 — 실제로 못 찾으면 누를 때 알린다.
 		if (isDynamicTarget(rule.file)) return "";
 		const file = this.app.vault.getAbstractFileByPath(rule.file);
 		if (!(file instanceof TFile)) return "파일이 없습니다";
-		if (!hasHeading(headingsOf(this.app, file), rule.heading, rule.level)) {
-			return "헤딩이 없습니다";
+		const options = headingsOf(this.app, file);
+		const missing = rule.headings.filter((h) => !hasHeading(options, h.heading, h.level));
+		if (missing.length) {
+			// 여러 개 중 일부만 사라졌으면 어느 것인지 알려야 고칠 수 있다.
+			return rule.headings.length > 1
+				? `헤딩이 없습니다: ${missing.map((h) => h.heading).join(", ")}`
+				: "헤딩이 없습니다";
 		}
 		return "";
 	}

@@ -1,6 +1,6 @@
 import { App, Modal, Notice } from "obsidian";
 import { RuleDef } from "../settings/Settings";
-import { appendTask, revealInserted, targetLabel } from "../core/appendTask";
+import { appendTask, headingLabel, revealInserted, targetLabel } from "../core/appendTask";
 import { resolveTargetFile } from "../core/resolveFile";
 import { addDays, resolveDateToken, todayISO } from "../core/dates";
 import { newTaskId } from "../core/taskId";
@@ -23,6 +23,8 @@ export class TaskFormModal extends Modal {
 
 	private title!: HTMLInputElement;
 	private tagSel!: HTMLSelectElement;
+	/** 규칙에 헤딩이 여러 개일 때만 만든다. 값 = headings 의 인덱스 */
+	private headSel?: HTMLSelectElement;
 	/** 규칙에 gcal 태그가 없으면 만들지 않는다 */
 	private gcalSel?: HTMLSelectElement;
 	private prioSel!: HTMLSelectElement;
@@ -54,7 +56,9 @@ export class TaskFormModal extends Modal {
 		const file = resolveTargetFile(this.app, this.rule.file, this.sourcePath);
 		const dest = contentEl.createEl("div", { cls: "qab-dest" });
 		dest.createEl("span", { text: "→", cls: "qab-arrow" });
-		dest.createEl("span", { text: targetLabel(this.rule, file) });
+		const destText = dest.createEl("span", {
+			text: targetLabel(this.rule, file, this.rule.headings[0]),
+		});
 		if (!file) {
 			dest.createEl("span", {
 				cls: "qab-dest-warn",
@@ -77,6 +81,19 @@ export class TaskFormModal extends Modal {
 			grid.createEl("div", { text: label, cls: "qab-lbl" });
 			return grid.createEl("div", { cls: "qab-val" });
 		};
+
+		// 넣을 헤딩. 하나뿐이면 고를 게 없으니 칸을 안 띄운다 — 위의 → 줄로 충분하다.
+		// 고르면 → 줄도 따라 바뀌어 지금 어디로 가는지가 늘 보인다.
+		if (this.rule.headings.length > 1) {
+			this.headSel = mkSelect(
+				field("헤딩"),
+				this.rule.headings.map((h, i) => [headingLabel(h), String(i)] as [string, string]),
+				"0"
+			);
+			this.headSel.addEventListener("change", () =>
+				destText.setText(targetLabel(this.rule, file, this.target()))
+			);
+		}
 
 		this.tagSel = mkSelect(
 			field("태그"),
@@ -159,6 +176,11 @@ export class TaskFormModal extends Modal {
 		window.setTimeout(() => this.title.focus(), 0);
 	}
 
+	/** 지금 고른 헤딩. 칸이 없으면 규칙의 유일한 헤딩 */
+	private target() {
+		return this.rule.headings[Number(this.headSel?.value ?? 0)] ?? this.rule.headings[0];
+	}
+
 	private setDue(iso: string): void {
 		this.dueIn.value = iso;
 		this.refresh();
@@ -208,7 +230,8 @@ export class TaskFormModal extends Modal {
 				this.rule,
 				this.buildLine(id),
 				this.posSel.value === "top",
-				this.sourcePath
+				this.sourcePath,
+				this.target()
 			);
 			if (!at) return;
 

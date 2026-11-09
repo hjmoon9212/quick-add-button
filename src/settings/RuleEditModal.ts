@@ -3,12 +3,13 @@ import {
 	App,
 	DropdownComponent,
 	Modal,
+	setIcon,
 	Setting,
 	TextComponent,
 	TFile,
 } from "obsidian";
-import { canonicalGcal, GCAL_TAGS, RuleDef } from "./Settings";
-import { headingsOf } from "../core/headings";
+import { canonicalGcal, GCAL_TAGS, HeadingRef, RuleDef } from "./Settings";
+import { HeadingOption, headingsOf } from "../core/headings";
 import { CURRENT, isDynamicTarget } from "../core/paths";
 import { validateRule } from "./validate";
 
@@ -46,12 +47,11 @@ class FileSuggest extends AbstractInputSuggest<string> {
 /** 규칙 하나(= 버튼 하나)를 편집한다. */
 export class RuleEditModal extends Modal {
 	private draft: RuleDef;
-	private headingSel!: HTMLSelectElement;
-	/** 파일이 그때그때 달라지는 규칙(`@current` 등)은 헤딩을 직접 적는다 */
-	private headingText!: TextComponent;
-	/** 직접 적을 때 몇 단계 헤딩인지. 목록에서 고를 때는 고른 헤딩이 정한다 */
-	private headingLevel!: DropdownComponent;
+	/** 헤딩 행들이 들어가는 자리. 파일이 바뀌면 이 안만 다시 그린다 */
+	private headingBox!: HTMLElement;
+	/** "파일을 먼저 선택하세요" 같은 상태 알림 */
 	private headingDesc!: HTMLElement;
+	private headingAdd!: HTMLButtonElement;
 
 	constructor(
 		app: App,
@@ -123,14 +123,12 @@ export class RuleEditModal extends Modal {
 					.setValue(this.draft.file)
 					.onChange((v) => {
 						this.draft.file = v.trim();
-						this.draft.heading = "";
-						this.draft.level = 0;
+						this.draft.headings = [];
 						this.refreshHeadings();
 					});
 				new FileSuggest(this.app, t.inputEl, (v) => {
 					this.draft.file = v;
-					this.draft.heading = "";
-					this.draft.level = 0;
+					this.draft.headings = [];
 					this.refreshHeadings();
 				});
 			});
@@ -138,30 +136,14 @@ export class RuleEditModal extends Modal {
 		const headingSetting = new Setting(contentEl)
 			.setName("헤딩")
 			.setClass("qab-stack")
-			.addDropdown((dd) => {
-				this.headingSel = dd.selectEl;
-				dd.onChange((v) => {
-					const at = v.indexOf(":");
-					this.draft.level = Number(v.slice(0, at));
-					this.draft.heading = v.slice(at + 1);
-				});
-			})
-			.addDropdown((dd) => {
-				this.headingLevel = dd;
-				dd.selectEl.addClass("qab-level");
-				// 0 = 이름만 대조. 노트마다 단계가 다르면 이쪽이고, 단계까지
-				// 똑같이 쓰는 볼트라면 골라 두는 편이 정확하다.
-				dd.addOption("0", "아무 단계");
-				for (let n = 1; n <= 6; n++) dd.addOption(String(n), "#".repeat(n));
-				dd.onChange((v) => (this.draft.level = Number(v)));
-			})
-			.addText((t) => {
-				this.headingText = t;
-				t.setPlaceholder("할 일").onChange(
-					(v) => (this.draft.heading = v.trim())
-				);
-			});
-		this.headingDesc = headingSetting.descEl;
+			.setClass("qab-headings");
+		headingSetting.descEl.createDiv({
+			text: "여러 개 넣으면 폼에서 고릅니다. 맨 위가 기본값입니다.",
+		});
+		this.headingDesc = headingSetting.descEl.createDiv({ cls: "qab-hint-error" });
+		this.headingBox = headingSetting.controlEl.createDiv({ cls: "qab-heading-list" });
+		this.headingAdd = headingSetting.controlEl.createEl("button", { text: "+ 헤딩 추가" });
+		this.headingAdd.onclick = () => this.addHeading();
 		this.refreshHeadings();
 
 		new Setting(contentEl)
@@ -265,6 +247,12 @@ export class RuleEditModal extends Modal {
 						if (!this.draft.label.trim()) this.draft.label = this.draft.name;
 						// 손으로 적은 캘린더도 아는 이름이면 표준 표기로 맞춰 둔다.
 						this.draft.gcals = this.draft.gcals.map(canonicalGcal);
+						// 직접 적는 칸을 비워 둔 행은 버린다. 옛 플러그인용 사본도 맞춘다.
+						this.draft.headings = this.draft.headings
+							.map((h) => ({ heading: h.heading.trim(), level: h.level }))
+							.filter((h) => h.heading);
+						this.draft.heading = this.draft.headings[0]?.heading ?? "";
+						this.draft.level = this.draft.headings[0]?.level ?? 0;
 						const errs = validateRule(this.draft, this.all, this.selfIndex);
 						errBox.empty();
 						if (errs.length) {
@@ -280,71 +268,128 @@ export class RuleEditModal extends Modal {
 	}
 
 	/**
-	 * 파일이 바뀌면 헤딩 목록을 그 자리에서 다시 채운다.
+	 * 헤딩 행들을 다시 그린다. 파일이 바뀌거나 행을 더하고 뺄 때 부른다.
 	 * 여기서 render() 를 다시 부르면 타이핑 도중 입력칸이 새로 그려져 포커스를
-	 * 잃으므로, option 만 갈아끼운다.
+	 * 잃으므로, 헤딩 자리 안만 갈아끼운다.
 	 */
 	private refreshHeadings(): void {
-		if (!this.headingSel) return;
-		this.headingSel.empty();
+		if (!this.headingBox) return;
+		this.headingBox.empty();
+		this.headingDesc.setText("");
+		this.headingAdd.disabled = false;
 
 		// 가리키는 노트가 누를 때마다 달라지면 헤딩 목록을 미리 못 만든다.
 		// 목록을 만들 수 없다고 입력까지 막으면 이 기능 자체를 못 쓰므로
 		// 이때만 직접 적게 한다.
-		const dynamic = isDynamicTarget(this.draft.file);
-		this.headingSel.toggle(!dynamic);
-		this.headingLevel.selectEl.toggle(dynamic);
-		this.headingText.inputEl.toggle(dynamic);
-		if (dynamic) {
-			this.headingText.setValue(this.draft.heading);
-			this.headingLevel.setValue(String(this.draft.level || 0));
-			this.headingDesc?.setText("");
+		if (isDynamicTarget(this.draft.file)) {
+			if (!this.draft.headings.length) this.draft.headings.push({ heading: "", level: 0 });
+			this.draft.headings.forEach((h, i) => this.dynamicRow(h, i));
 			return;
 		}
 
 		const file = this.app.vault.getAbstractFileByPath(this.draft.file);
-		if (!(file instanceof TFile)) {
-			this.setHeadingState("파일을 먼저 선택하세요.", true);
-			return;
-		}
-
-		const options = headingsOf(this.app, file);
+		const options = file instanceof TFile ? headingsOf(this.app, file) : [];
 		if (!options.length) {
-			this.setHeadingState("이 노트에는 헤딩이 없습니다. 헤딩을 만든 뒤 다시 고르세요.", true);
+			this.draft.headings = [];
+			this.headingAdd.disabled = true;
+			this.headingDesc.setText(
+				file instanceof TFile
+					? "이 노트에는 헤딩이 없습니다. 헤딩을 만든 뒤 다시 고르세요."
+					: "파일을 먼저 선택하세요."
+			);
 			return;
 		}
 
-		for (const h of options) {
-			const o = this.headingSel.createEl("option", {
-				text: `${"#".repeat(h.level)} ${h.heading}`,
-			});
-			o.value = `${h.level}:${h.heading}`;
-		}
-		this.headingSel.disabled = false;
-		// 고를 수 있는 상태에서는 설명을 비운다. descEl 은 아래의 "파일을 먼저
-		// 선택하세요" 같은 **상태 알림**에만 쓴다.
-		this.headingDesc?.setText("");
-
-		const want = `${this.draft.level}:${this.draft.heading}`;
-		if (this.draft.heading && options.some((h) => `${h.level}:${h.heading}` === want)) {
-			this.headingSel.value = want;
-		} else {
-			// 첫 헤딩을 기본으로 잡아 둔다 — 안 고르고 저장하면 검증에 걸린다.
-			this.headingSel.selectedIndex = 0;
-			this.draft.level = options[0].level;
-			this.draft.heading = options[0].heading;
-		}
+		// 첫 헤딩을 기본으로 잡아 둔다 — 안 고르고 저장하면 검증에 걸린다.
+		if (!this.draft.headings.length) this.draft.headings.push({ ...options[0] });
+		this.draft.headings.forEach((h, i) => this.pickRow(h, i, options));
 	}
 
-	private setHeadingState(message: string, empty: boolean): void {
-		const o = this.headingSel.createEl("option", { text: "—" });
-		o.value = "";
-		this.headingSel.disabled = true;
-		this.headingDesc?.setText(message);
-		if (empty) {
-			this.draft.heading = "";
-			this.draft.level = 0;
+	/** 목록에서 고르는 행. 노트에서 사라진 헤딩은 말없이 바꾸지 않고 그대로 보여준다. */
+	private pickRow(h: HeadingRef, i: number, options: HeadingOption[]): void {
+		const row = this.rowEl();
+		const sel = row.createEl("select");
+		const key = (x: HeadingRef): string => `${x.level}:${x.heading}`;
+		const known = options.some((o) => key(o) === key(h) || (!h.level && o.heading === h.heading));
+		if (!known) {
+			const o = sel.createEl("option", { text: `⚠️ 없음 — ${h.heading}` });
+			o.value = key(h);
 		}
+		for (const o of options) {
+			const el = sel.createEl("option", { text: `${"#".repeat(o.level)} ${o.heading}` });
+			el.value = key(o);
+		}
+		const hit = options.find((o) => key(o) === key(h)) ??
+			(!h.level ? options.find((o) => o.heading === h.heading) : undefined);
+		sel.value = key(hit ?? h);
+		if (hit) this.draft.headings[i] = { ...hit };
+		sel.onchange = () => {
+			const at = sel.value.indexOf(":");
+			this.draft.headings[i] = {
+				level: Number(sel.value.slice(0, at)),
+				heading: sel.value.slice(at + 1),
+			};
+		};
+		this.rowButtons(row, i);
+	}
+
+	/** 직접 적는 행(`@current` · 상대경로). 단계 + 이름 */
+	private dynamicRow(h: HeadingRef, i: number): void {
+		const row = this.rowEl();
+		const lv = new DropdownComponent(row);
+		lv.selectEl.addClass("qab-level");
+		// 0 = 이름만 대조. 노트마다 단계가 다르면 이쪽이고, 단계까지
+		// 똑같이 쓰는 볼트라면 골라 두는 편이 정확하다.
+		lv.addOption("0", "아무 단계");
+		for (let n = 1; n <= 6; n++) lv.addOption(String(n), "#".repeat(n));
+		lv.setValue(String(h.level || 0));
+		lv.onChange((v) => (this.draft.headings[i].level = Number(v)));
+		new TextComponent(row)
+			.setPlaceholder("할 일")
+			.setValue(h.heading)
+			.onChange((v) => (this.draft.headings[i].heading = v.trim()));
+		this.rowButtons(row, i);
+	}
+
+	private rowEl(): HTMLElement {
+		return this.headingBox.createDiv({ cls: "qab-heading-row" });
+	}
+
+	/** 행 오른쪽의 ↑(기본으로 올리기) · × 버튼 */
+	private rowButtons(row: HTMLElement, i: number): void {
+		const n = this.draft.headings.length;
+		const up = row.createEl("button", { cls: "clickable-icon", attr: { "aria-label": "위로" } });
+		setIcon(up, "chevron-up");
+		up.disabled = i === 0;
+		up.onclick = () => {
+			const hs = this.draft.headings;
+			[hs[i - 1], hs[i]] = [hs[i], hs[i - 1]];
+			this.refreshHeadings();
+		};
+		const del = row.createEl("button", { cls: "clickable-icon", attr: { "aria-label": "빼기" } });
+		setIcon(del, "x");
+		// 마지막 하나는 못 뺀다 — 헤딩 없는 버튼은 저장되지 않는다.
+		del.disabled = n <= 1;
+		del.onclick = () => {
+			this.draft.headings.splice(i, 1);
+			this.refreshHeadings();
+		};
+	}
+
+	private addHeading(): void {
+		if (isDynamicTarget(this.draft.file)) {
+			this.draft.headings.push({ heading: "", level: 0 });
+		} else {
+			const file = this.app.vault.getAbstractFileByPath(this.draft.file);
+			if (!(file instanceof TFile)) return;
+			const options = headingsOf(this.app, file);
+			const used = new Set(this.draft.headings.map((h) => `${h.level}:${h.heading}`));
+			// 아직 안 쓴 헤딩 중 첫 번째를 채워 둔다. 다 썼으면 첫 헤딩 — 검증이 중복을 알린다.
+			const next = options.find((o) => !used.has(`${o.level}:${o.heading}`)) ?? options[0];
+			if (!next) return;
+			this.draft.headings.push({ ...next });
+		}
+		this.refreshHeadings();
 	}
 
 	onClose(): void {

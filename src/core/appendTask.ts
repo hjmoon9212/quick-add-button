@@ -1,5 +1,5 @@
 import { App, MarkdownView, Notice, TFile, WorkspaceLeaf } from "obsidian";
-import { RuleDef } from "../settings/Settings";
+import { HeadingRef, RuleDef } from "../settings/Settings";
 import { insertTaskLine } from "./insertTaskLine";
 import { CURRENT, isDynamicTarget } from "./paths";
 import { resolveTargetFile } from "./resolveFile";
@@ -11,7 +11,12 @@ import { resolveTargetFile } from "./resolveFile";
  * 보다 `2026-08-16 › 할 일` 이 낫다. 설정탭처럼 기준 노트가 없는 자리에서는
  * 토큰을 그대로 읽히게 둔다.
  */
-export function targetLabel(rule: RuleDef, resolved?: TFile | null): string {
+export function targetLabel(
+	rule: RuleDef,
+	resolved?: TFile | null,
+	/** 고른 헤딩. 생략하면 기본(첫 번째)과 "외 N" 을 보여준다 */
+	target?: HeadingRef
+): string {
 	const where = resolved
 		? baseName(resolved.path)
 		: rule.file === CURRENT
@@ -19,10 +24,17 @@ export function targetLabel(rule: RuleDef, resolved?: TFile | null): string {
 			: baseName(rule.file);
 	// 단계까지 보여준다 — 같은 이름의 헤딩이 여러 단계에 있으면 이름만으로는
 	// 어디로 가는지 알 수 없다. level 0 은 "아무 단계" 라 붙일 게 없다.
-	const head = rule.level
-		? `${"#".repeat(rule.level)} ${rule.heading}`
-		: rule.heading;
-	return `${where} › ${head}`;
+	const shown = target ?? rule.headings[0];
+	const head = shown ? headingLabel(shown) : "—";
+	// 설정탭처럼 헤딩을 아직 안 고른 자리에서는 몇 개 더 있는지만 알린다.
+	const more =
+		!target && rule.headings.length > 1 ? ` 외 ${rule.headings.length - 1}` : "";
+	return `${where} › ${head}${more}`;
+}
+
+/** 헤딩 하나를 읽히게. level 0 은 "아무 단계" 라 # 를 안 붙인다. */
+export function headingLabel(h: HeadingRef): string {
+	return h.level ? `${"#".repeat(h.level)} ${h.heading}` : h.heading;
 }
 
 export function baseName(path: string): string {
@@ -46,8 +58,14 @@ export async function appendTask(
 	rule: RuleDef,
 	line: string,
 	atTop: boolean,
-	sourcePath: string
+	sourcePath: string,
+	/** 넣을 헤딩. 규칙의 headings 중 폼에서 고른 것. 생략하면 기본(첫 번째) */
+	target: HeadingRef | undefined = rule.headings[0]
 ): Promise<Inserted | null> {
+	if (!target) {
+		new Notice(`⚠️ 이 버튼에는 넣을 헤딩이 없습니다: ${rule.name}`);
+		return null;
+	}
 	const file = resolveTargetFile(app, rule.file, sourcePath);
 	if (!file) {
 		new Notice(
@@ -62,15 +80,15 @@ export async function appendTask(
 		app,
 		file,
 		line,
-		rule.heading,
-		rule.level,
+		target.heading,
+		target.level,
 		atTop
 	);
 	if (index === null) {
-		new Notice(`⚠️ 헤딩을 찾지 못했습니다: ${rule.heading}`);
+		new Notice(`⚠️ 헤딩을 찾지 못했습니다: ${headingLabel(target)}`);
 		return null;
 	}
-	new Notice(`✅ 추가됨 → ${targetLabel(rule, file)}`);
+	new Notice(`✅ 추가됨 → ${targetLabel(rule, file, target)}`);
 	return { file, index };
 }
 

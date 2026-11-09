@@ -40,6 +40,12 @@ export function canonicalGcal(tag: string): string {
 	return hit ?? tag;
 }
 
+/** 헤딩 하나. level 0 = 아무 단계(이름만 대조), 1~6 = 그 단계만. */
+export interface HeadingRef {
+	heading: string;
+	level: number;
+}
+
 /** 버튼 하나 = 규칙 하나. 넣을 자리와 태그가 버튼에 고정된다. */
 export interface RuleDef {
 	/** 코드블록에서 부르는 이름 */
@@ -58,9 +64,17 @@ export interface RuleDef {
 	ribbon: boolean;
 	/** 삽입할 노트의 볼트 경로 */
 	file: string;
-	/** 삽입할 헤딩 텍스트 */
+	/**
+	 * 넣을 수 있는 헤딩들. 여러 개면 폼에서 고르고 첫 번째가 기본 — 태그와 같은 규칙이다.
+	 * v11 에서 생겼다. 비어 있지 않게 정규화한다(헤딩 없는 규칙은 꺼진다).
+	 */
+	headings: HeadingRef[];
+	/**
+	 * `headings[0]` 의 사본. 0.16.x 이하 플러그인은 이 둘만 읽으므로, 아직 갱신 안 된
+	 * 기기가 규칙 파일을 읽어도 기본 헤딩으로는 동작하게 남겨 둔다.
+	 * 코드에서는 읽지 말고 `headings` 를 쓴다.
+	 */
 	heading: string;
-	/** 헤딩 레벨(1~6). 같은 이름의 헤딩이 여러 개일 때 구분한다 */
 	level: number;
 	/** 이 버튼이 쓰는 태그. 여러 개면 폼에서 고른다. 첫 번째가 기본 */
 	tags: string[];
@@ -78,6 +92,7 @@ export interface QuickAddButtonSettings {
 	/**
 	 * 규칙을 둘 볼트 파일. 비어 있으면 예전처럼 이 파일(data.json) 안에 둔다.
 	 *
+	 * v11: 규칙마다 헤딩 여러 개(`headings`).
 	 * v10: `.obsidian` 안은 Obsidian Sync 의 「설치된 커뮤니티 플러그인」 토글로만
 	 * 오간다 — 그걸 켜면 `main.js` 까지 같이 다녀서 잠들었던 기기가 옛 코드를
 	 * 밀어 올린다. 규칙만 볼트 파일에 두면 그 토글을 끈 채로 규칙은 공유된다.
@@ -97,7 +112,7 @@ export const DEFAULT_TASK_DEFAULTS: TaskDefaults = {
 };
 
 export const DEFAULT_SETTINGS: QuickAddButtonSettings = {
-	version: 10,
+	version: 11,
 	rulesFile: "",
 	rules: [
 		{
@@ -106,6 +121,7 @@ export const DEFAULT_SETTINGS: QuickAddButtonSettings = {
 			enabled: true,
 			ribbon: true,
 			file: "0. Note/0. Inbox/Temp Tasks.md",
+			headings: [{ heading: "Quick Add", level: 1 }],
 			heading: "Quick Add",
 			level: 1,
 			tags: ["#task"],
@@ -123,6 +139,7 @@ export function blankRule(): RuleDef {
 		enabled: true,
 		ribbon: true,
 		file: "",
+		headings: [],
 		heading: "",
 		level: 0,
 		tags: ["#task"],
