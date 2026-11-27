@@ -30,6 +30,9 @@ export class TaskFormModal extends Modal {
 	private prioSel!: HTMLSelectElement;
 	private startIn!: HTMLInputElement;
 	private dueIn!: HTMLInputElement;
+	/** ⏰ 시각. 시작이 비면 줄에 안 붙는다(= 종일) */
+	private timeFrom!: HTMLInputElement;
+	private timeTo!: HTMLInputElement;
 	private posSel!: HTMLSelectElement;
 	private idChk!: HTMLInputElement;
 	private createdChk!: HTMLInputElement;
@@ -124,6 +127,17 @@ export class TaskFormModal extends Modal {
 			this.refresh();
 		});
 
+		// ⏰ 시각. 비워 두면 줄에 안 붙어 종일 task 로 남는다. 끝은 선택.
+		const timeVal = field("⏰ 시간");
+		this.timeFrom = mkTime(timeVal);
+		timeVal.createEl("span", { text: "~", cls: "qab-time-sep" });
+		this.timeTo = mkTime(timeVal);
+		mkChip(timeVal, "초기화", () => {
+			this.timeFrom.value = "";
+			this.timeTo.value = "";
+			this.refresh();
+		});
+
 		this.prioSel = mkSelect(field("우선순위"), PRIORITIES, d.priority);
 		this.posSel = mkSelect(
 			field("위치"),
@@ -157,6 +171,8 @@ export class TaskFormModal extends Modal {
 			this.prioSel,
 			this.startIn,
 			this.dueIn,
+			this.timeFrom,
+			this.timeTo,
 			this.idChk,
 			this.createdChk,
 		];
@@ -193,12 +209,24 @@ export class TaskFormModal extends Modal {
 		const parts = [
 			`- [ ] ${this.tagSel.value} ${gcal}${this.title.value.trim() || "내용"}`,
 		];
+		// ⏰ 는 반드시 첫 필드 이모지 앞. 줄 끝에 두면 Tasks 가 뒤에서부터 벗기다
+		// 멈춰 📅🛫 까지 설명으로 삼킨다(tasks-gcal-sync TaskLine.setTime 참고).
+		const time = this.timeValue();
+		if (time) parts.push(`⏰ ${time}`);
 		if (this.prioSel.value) parts.push(this.prioSel.value);
 		if (this.idChk.checked) parts.push(`🆔 ${id}`);
 		if (this.createdChk.checked) parts.push(`➕ ${todayISO()}`);
 		if (this.startIn.value) parts.push(`🛫 ${this.startIn.value}`);
 		if (this.dueIn.value) parts.push(`📅 ${this.dueIn.value}`);
 		return parts.join(" ");
+	}
+
+	/** "HH:MM" | "HH:MM-HH:MM" | "" — 시작이 비면 끝이 있어도 "" */
+	private timeValue(): string {
+		const from = this.timeFrom.value.trim();
+		const to = this.timeTo.value.trim();
+		if (!from) return "";
+		return to ? `${from}-${to}` : from;
 	}
 
 	private refresh(): void {
@@ -220,6 +248,10 @@ export class TaskFormModal extends Modal {
 			this.startIn.value > this.dueIn.value
 		) {
 			new Notice("시작일이 마감일보다 뒤일 수 없습니다");
+			return;
+		}
+		if (this.timeFrom.value && this.timeTo.value && this.timeFrom.value >= this.timeTo.value) {
+			new Notice("끝 시간이 시작 시간보다 뒤여야 합니다");
 			return;
 		}
 		this.busy = true;
@@ -273,6 +305,12 @@ function mkDate(parent: HTMLElement, value: string): HTMLInputElement {
 	d.type = "date";
 	d.value = value;
 	return d;
+}
+
+function mkTime(parent: HTMLElement): HTMLInputElement {
+	const t = parent.createEl("input");
+	t.type = "time";
+	return t;
 }
 
 function mkChip(parent: HTMLElement, label: string, onClick: () => void): void {

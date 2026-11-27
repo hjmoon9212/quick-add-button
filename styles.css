@@ -107,8 +107,13 @@
 }
 
 .qab-form .qab-val input[type="date"],
+.qab-form .qab-val input[type="time"],
 .qab-form .qab-val select {
   font-size: 13px;
+}
+
+.qab-form .qab-time-sep {
+  color: var(--text-muted);
 }
 
 .qab-form .qab-chips {
