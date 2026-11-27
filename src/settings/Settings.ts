@@ -131,6 +131,23 @@ export const DEFAULT_SETTINGS: QuickAddButtonSettings = {
 	],
 };
 
+/**
+ * 새 규칙에 미리 채워 둘 태그. 맨 앞이 폼의 기본값이다.
+ * 업무 볼트의 task 유형 태그(`Guide/작업 구조 규칙.md` §태그)에 맞췄다 — 규칙마다
+ * 안 쓰는 것을 지우는 편이 매번 적는 것보다 빠르다.
+ */
+export const DEFAULT_RULE_TAGS = [
+	"#task",
+	"#task/Deploy",
+	"#task/Hold",
+	"#task/found",
+	"#task/Issue",
+	"#task/Test",
+	"#task/Doc",
+	"#task/Analysis",
+	"#task/Q",
+];
+
 /** 새 규칙의 초기값. */
 export function blankRule(): RuleDef {
 	return {
@@ -142,7 +159,7 @@ export function blankRule(): RuleDef {
 		headings: [],
 		heading: "",
 		level: 0,
-		tags: ["#task"],
+		tags: [...DEFAULT_RULE_TAGS],
 		gcals: [],
 		defaults: { ...DEFAULT_TASK_DEFAULTS },
 	};
